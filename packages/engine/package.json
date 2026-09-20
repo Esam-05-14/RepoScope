@@ -1,0 +1,19 @@
+{
+  "name": "@reposcope/engine",
+  "version": "0.1.0-r1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@reposcope/contracts": "0.1.0-r1",
+    "@reposcope/graph": "0.1.0-r1"
+  }
+}

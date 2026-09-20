@@ -2,14 +2,15 @@
 
 Local, read-only TypeScript and JavaScript architecture explorer. It turns supported source-level imports into an evidence-linked dependency graph so a developer can ask: **what depends on this file, and what evidence should I inspect before changing it?**
 
-This repository is **in development**. The current contents are the planning pack: product contract, frozen versions, data schemas, fixtures, and bounded implementation prompts. There is not yet a working analyzer, local server, or investigation UI.
+This repository is **in development**. R1 provides workspaces, an authenticated loopback shell, and a prebuilt UI placeholder. There is not yet a working scanner, graph, or evidence inspector.
 
 ## Status
 
 | Wave | Intent | State |
 | --- | --- | --- |
-| R0 | Freeze contracts, versions, and safety boundaries | In progress in this tree |
-| R1–R5 | P0 engine, investigation UI, snapshot compare | Not started |
+| R0 | Freeze contracts, versions, and safety boundaries | Done |
+| R1 | Workspaces, CLI, authenticated loopback health | Done |
+| R2–R5 | P0 engine, investigation UI, snapshot compare | Not started |
 | R6 | Optional P1 Git adapter and boundary policy | Deferred until P0 gates pass |
 | R7 | Packaging, benchmarks, public docs | Not started |
 
@@ -32,11 +33,12 @@ Do not describe RepoScope as completed software until the P0 release gate in `do
 
 ## Local setup
 
-Application scripts (`npm ci`, `npm run build`, `npm run demo`) are R1/R7 deliverables. Today you need:
+1. Node.js **24.21.0** (Active LTS) and npm **11.19.0**.
+2. `npm ci`
+3. `npm run build`
+4. `npm run demo` — serves `fixtures/esm-baseline` on `127.0.0.1`. The session token is passed in the URL fragment and is not printed.
 
-1. Node.js **24.21.0** (Active LTS, Krypton). This machine already has that exact build at `C:\Program Files\nodejs\node.exe`.
-2. npm **11.19.0** (ships with that Node).
-3. The documents in `docs/`, contracts in `contracts/`, and fixtures in `fixtures/`.
+`GET /api/health` requires `Authorization: Bearer <token>`. There is no repository scan yet.
 
 Pinned versions live in [`docs/versions.md`](docs/versions.md).
 

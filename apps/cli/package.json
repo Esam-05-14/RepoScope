@@ -1,0 +1,22 @@
+{
+  "name": "@reposcope/cli",
+  "version": "0.1.0-r1",
+  "type": "module",
+  "bin": {
+    "reposcope": "./dist/main.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/main.d.ts",
+      "import": "./dist/main.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@reposcope/contracts": "0.1.0-r1",
+    "@reposcope/server": "0.1.0-r1"
+  }
+}

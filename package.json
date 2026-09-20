@@ -1,0 +1,35 @@
+{
+  "name": "reposcope",
+  "private": true,
+  "version": "0.1.0-r1",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24.21.0 <25",
+    "npm": ">=11.19.0 <12"
+  },
+  "scripts": {
+    "build": "tsc -b && npm run build -w @reposcope/web",
+    "typecheck": "tsc -b --pretty false && npm run typecheck -w @reposcope/web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "lint": "eslint .",
+    "demo": "node apps/cli/dist/main.js inspect --demo",
+    "verify": "node scripts/verify.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.36.0",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.13.3",
+    "eslint": "9.36.0",
+    "globals": "16.4.0",
+    "playwright": "1.63.0",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.1"
+  }
+}

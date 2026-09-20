@@ -16,6 +16,10 @@ Wave R0 selects runtime, parser, schema, and confinement. It does not implement 
 10. **Schema `1.0.0` is frozen** in `contracts/schemas/`. Runtime validators are R1/R2 work; the JSON Schema is the contract they must implement.
 11. **Vite 8.3.0 selected** with spike S1. Fallback is Vite 7 via a new ADR, not an unreviewed swap.
 
+## R1 follow-up
+
+Workspace packages and the loopback shell are implemented in wave R1. Parser extraction remains R2.
+
 ## Explicitly not decided at R0
 
 - Packaged `reposcope inspect` CLI UX details beyond the command name (P1).

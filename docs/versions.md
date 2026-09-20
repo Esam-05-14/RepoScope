@@ -45,7 +45,7 @@ If spike S1 fails on Windows, the documented fallback is Vite 7 plus a Vite-7-co
 | --- | --- |
 | Snapshot `schemaVersion` | `1.0.0` |
 | Snapshot major compatibility | accept `1.x.x`; reject unknown majors |
-| `engineVersion` | `0.0.0-r0` until R1 publishes a package version |
+| `engineVersion` | `0.1.0-r1` |
 | `parserVersion` | `typescript@6.0.3` |
 
 ## Sources checked

@@ -1,0 +1,20 @@
+{
+  "name": "@reposcope/server",
+  "version": "0.1.0-r1",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@fastify/static": "10.1.4",
+    "@reposcope/contracts": "0.1.0-r1",
+    "fastify": "5.12.5"
+  }
+}
