@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reposcope.local/schemas/comparison/1.0.0",
+  "title": "SnapshotComparison",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "baseDigest",
+    "targetDigest",
+    "compatibility",
+    "addedNodes",
+    "removedNodes",
+    "changedNodes",
+    "addedEdges",
+    "removedEdges",
+    "changedEdges",
+    "addedCycleGroups",
+    "removedCycleGroups",
+    "coverageDelta"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "baseDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "targetDigest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["compatible", "warning", "blocked"] },
+        "reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "addedNodes": { "type": "array", "items": { "type": "string" } },
+    "removedNodes": { "type": "array", "items": { "type": "string" } },
+    "changedNodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "change"],
+        "properties": {
+          "id": { "type": "string" },
+          "change": { "type": "string", "enum": ["content", "parse-status", "context"] }
+        }
+      }
+    },
+    "addedEdges": { "type": "array", "items": { "type": "string" } },
+    "removedEdges": { "type": "array", "items": { "type": "string" } },
+    "changedEdges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "change"],
+        "properties": {
+          "key": { "type": "string" },
+          "change": { "type": "string", "enum": ["classification", "resolution", "evidence-only"] }
+        }
+      }
+    },
+    "addedCycleGroups": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+    "removedCycleGroups": { "type": "array", "items": { "type": "array", "items": { "type": "string" } } },
+    "coverageDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "discoveredFiles": { "type": "integer" },
+        "analyzedFiles": { "type": "integer" },
+        "unresolved": { "type": "integer" },
+        "unsupported": { "type": "integer" }
+      }
+    }
+  }
+}

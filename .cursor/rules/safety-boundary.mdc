@@ -1,0 +1,14 @@
+---
+description: Local loopback and filesystem confinement
+alwaysApply: true
+---
+
+# Safety boundary
+
+Bind the API to 127.0.0.1. Validate Host and Origin. No wildcard CORS. Session token in memory, authorization header on API calls.
+
+The CLI chooses the root once. Routes accept opaque ids, never arbitrary paths.
+
+Do not follow symlinks by default. Do not import or run inspected project configuration. Do not install that project's packages.
+
+Default exports omit source text and absolute paths. Recheck content hashes before serving evidence.

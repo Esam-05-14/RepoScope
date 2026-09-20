@@ -1,0 +1,14 @@
+---
+description: Build one wave at a time and stop at gates
+alwaysApply: true
+---
+
+# Wave discipline
+
+Follow `docs/waves.md` and the matching file in `prompts/`.
+
+R0 is contracts and versions only. Do not implement scanner, parser, server, or UI during R0.
+
+A failed security or data-correctness gate blocks the next wave. Do not fake engine output with fixture JSON in a demo.
+
+Do not commit or push unless the user explicitly asks. Never force-push. Never edit Tripwire.

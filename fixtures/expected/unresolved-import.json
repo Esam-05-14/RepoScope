@@ -1,0 +1,32 @@
+{
+  "fixture": "unresolved-import",
+  "files": ["src/index.ts"],
+  "supportedInternalObservations": 0,
+  "valueEdges": [],
+  "observations": [
+    {
+      "importerId": "src/index.ts",
+      "specifier": "./does-not-exist.js",
+      "syntaxKind": "static-import",
+      "edgeClass": "value",
+      "resolution": {
+        "status": "unresolved",
+        "reasonCode": "UNRESOLVED_MODULE"
+      }
+    }
+  ],
+  "coverage": {
+    "discoveredSourceFiles": 1,
+    "analyzedFiles": 1,
+    "skippedFiles": 0,
+    "parseFailures": 0,
+    "constructCounts": {
+      "internal": 0,
+      "external": 0,
+      "unresolved": 1,
+      "unsupported": 0,
+      "typeOnly": 0,
+      "mixed": 0
+    }
+  }
+}

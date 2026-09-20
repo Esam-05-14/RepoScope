@@ -1,0 +1,14 @@
+---
+description: RepoScope product language and claim boundaries
+alwaysApply: true
+---
+
+# Product language
+
+RepoScope reports observed source-level dependencies. It does not predict runtime failures.
+
+Use: observed dependency, potential investigation scope, declared value import, not resolved under this configuration.
+
+Never write: this change will break N files, complete architecture, dead code proven, safe to delete.
+
+Do not add an LLM, embeddings store, or remote analysis call. A later assistant would be a separate, off-by-default feature and must not create graph edges.

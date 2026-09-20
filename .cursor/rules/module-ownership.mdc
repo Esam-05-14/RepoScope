@@ -1,0 +1,14 @@
+---
+description: Workspace module direction and parser pin
+alwaysApply: true
+---
+
+# Module ownership
+
+Applications may import packages. Packages must not import application code.
+
+`contracts` must not depend on React, Fastify, filesystem access, or the TypeScript compiler.
+
+`graph` receives plain normalized records, not compiler AST objects.
+
+`parser-ts` uses an injected filesystem host. Pin `typescript@6.0.3`. Do not use TypeScript 7 as the parser.

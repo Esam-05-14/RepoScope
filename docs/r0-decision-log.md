@@ -1,0 +1,27 @@
+# R0 decision log
+
+Wave R0 selects runtime, parser, schema, and confinement. It does not implement scanning, HTTP routes, or UI.
+
+## Decisions made 20 September 2026
+
+1. **Repository location.** `C:\Users\User\Documents\RepoScope` on branch `implementation`.
+2. **Node 24.21.0.** Already installed locally. Pin CI to the same patch.
+3. **Parser is `typescript@6.0.3`.** TypeScript 7.0 has no compiler API. Isolate all compiler use behind `packages/parser-ts` at R2.
+4. **npm workspaces, one lockfile.** No pnpm or yarn.
+5. **Local Node process + prebuilt browser UI.** ADR-R02. Not Electron.
+6. **File-level graph first.** ADR-R03. No symbol graph in P0.
+7. **Snapshots before Git.** ADR-R04. P0 compare is portable snapshot diff.
+8. **No LLM in the trust path.** ADR-R05.
+9. **Coverage is first-class.** ADR-R06.
+10. **Schema `1.0.0` is frozen** in `contracts/schemas/`. Runtime validators are R1/R2 work; the JSON Schema is the contract they must implement.
+11. **Vite 8.3.0 selected** with spike S1. Fallback is Vite 7 via a new ADR, not an unreviewed swap.
+
+## Explicitly not decided at R0
+
+- Packaged `reposcope inspect` CLI UX details beyond the command name (P1).
+- Hosted public demo hosting vendor (only if later requested; public fixtures only).
+- Maintainer security email (must be a real address before public release).
+
+## Change control
+
+A later agent may propose a deviation. It must not replace this stack to make a demo look complete. Update this log and add an ADR when a pin or boundary changes.

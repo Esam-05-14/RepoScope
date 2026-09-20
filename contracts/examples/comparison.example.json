@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "1.0.0",
+  "baseDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "targetDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "compatibility": { "status": "compatible", "reasons": [] },
+  "addedNodes": [],
+  "removedNodes": [],
+  "changedNodes": [
+    { "id": "src/lib/money.ts", "change": "content" }
+  ],
+  "addedEdges": [
+    "src/lib/money.ts>|internal:src/main.ts|static-import|value"
+  ],
+  "removedEdges": [],
+  "changedEdges": [],
+  "addedCycleGroups": [
+    ["src/app.ts", "src/cycle-a.ts", "src/cycle-b.ts", "src/lib/money.ts", "src/main.ts"]
+  ],
+  "removedCycleGroups": [
+    ["src/app.ts", "src/cycle-a.ts", "src/cycle-b.ts"]
+  ],
+  "coverageDelta": {
+    "discoveredFiles": 0,
+    "analyzedFiles": 0,
+    "unresolved": 0,
+    "unsupported": 0
+  }
+}

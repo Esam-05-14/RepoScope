@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reposcope.local/schemas/api-error/1.0.0",
+  "title": "ApiError",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["code", "message", "diagnosticId"],
+  "properties": {
+    "code": {
+      "type": "string",
+      "enum": [
+        "UNAUTHENTICATED",
+        "FORBIDDEN_ORIGIN",
+        "INVALID_HOST",
+        "VALIDATION_FAILED",
+        "SCAN_NOT_FOUND",
+        "SCAN_CANCELED",
+        "SCAN_FAILED",
+        "SCAN_PARTIAL",
+        "SNAPSHOT_INCOMPATIBLE",
+        "EVIDENCE_STALE",
+        "EVIDENCE_UNAVAILABLE",
+        "LIMIT_HIT",
+        "UNSUPPORTED_REPOSITORY"
+      ]
+    },
+    "message": { "type": "string", "minLength": 1, "maxLength": 500 },
+    "diagnosticId": { "type": "string", "minLength": 8, "maxLength": 64 },
+    "details": { "type": "object" }
+  }
+}

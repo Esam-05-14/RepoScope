@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0.0",
+  "engineVersion": "0.0.0-r0",
+  "parserVersion": "typescript@6.0.3",
+  "generatedAt": "2026-09-20T00:00:00.000Z",
+  "scanId": "example-not-a-real-scan",
+  "scope": {
+    "kind": "imported-snapshot",
+    "repositoryIdentity": "fixture:esm-baseline",
+    "edgePolicy": "value-and-mixed",
+    "limits": {
+      "maxSourceFiles": 5000,
+      "maxBytesPerFile": 1048576,
+      "maxAnalyzedBytes": 104857600
+    },
+    "truncated": false
+  },
+  "projectContexts": [
+    {
+      "id": "ctx:tsconfig",
+      "kind": "tsconfig",
+      "configPath": "tsconfig.json"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "src/app.ts",
+      "relativePath": "src/app.ts",
+      "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000001",
+      "language": "ts",
+      "projectContextId": "ctx:tsconfig",
+      "parseStatus": "ok"
+    },
+    {
+      "id": "src/cycle-a.ts",
+      "relativePath": "src/cycle-a.ts",
+      "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000002",
+      "language": "ts",
+      "projectContextId": "ctx:tsconfig",
+      "parseStatus": "ok"
+    },
+    {
+      "id": "src/cycle-b.ts",
+      "relativePath": "src/cycle-b.ts",
+      "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000003",
+      "language": "ts",
+      "projectContextId": "ctx:tsconfig",
+      "parseStatus": "ok"
+    },
+    {
+      "id": "src/lib/money.ts",
+      "relativePath": "src/lib/money.ts",
+      "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000004",
+      "language": "ts",
+      "projectContextId": "ctx:tsconfig",
+      "parseStatus": "ok"
+    },
+    {
+      "id": "src/main.ts",
+      "relativePath": "src/main.ts",
+      "contentHash": "sha256:0000000000000000000000000000000000000000000000000000000000000005",
+      "language": "ts",
+      "projectContextId": "ctx:tsconfig",
+      "parseStatus": "ok"
+    }
+  ],
+  "observations": [
+    {
+      "id": "obs:main:app",
+      "importerId": "src/main.ts",
+      "specifier": "./app.js",
+      "syntaxKind": "static-import",
+      "edgeClass": "value",
+      "range": { "startOffset": 0, "endOffset": 40, "startLine": 1, "startColumn": 1, "endLine": 1, "endColumn": 41 },
+      "resolution": { "status": "internal", "targetId": "src/app.ts", "contextId": "ctx:tsconfig", "reasonCode": "RESOLVED_INTERNAL" }
+    }
+  ],
+  "semanticEdges": [
+    {
+      "key": "src/main.ts>|internal:src/app.ts|static-import|value",
+      "importerId": "src/main.ts",
+      "targetId": "src/app.ts",
+      "edgeClass": "value",
+      "syntaxClass": "static-import",
+      "observationIds": ["obs:main:app"]
+    }
+  ],
+  "coverage": {
+    "discoveredFiles": 5,
+    "analyzedFiles": 5,
+    "skippedFiles": 0,
+    "parseFailures": 0,
+    "constructCounts": {
+      "internal": 5,
+      "external": 0,
+      "unresolved": 0,
+      "unsupported": 0,
+      "typeOnly": 0,
+      "mixed": 0
+    },
+    "truncations": []
+  },
+  "graphDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "contentManifestDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

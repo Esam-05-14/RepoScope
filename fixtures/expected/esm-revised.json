@@ -1,0 +1,46 @@
+{
+  "fixture": "esm-revised",
+  "files": [
+    "src/app.ts",
+    "src/cycle-a.ts",
+    "src/cycle-b.ts",
+    "src/lib/money.ts",
+    "src/main.ts"
+  ],
+  "supportedInternalObservations": 6,
+  "valueEdges": [
+    { "from": "src/app.ts", "to": "src/cycle-a.ts", "specifier": "./cycle-a.js", "syntaxKind": "static-import", "edgeClass": "value" },
+    { "from": "src/app.ts", "to": "src/lib/money.ts", "specifier": "./lib/money.js", "syntaxKind": "static-import", "edgeClass": "value" },
+    { "from": "src/cycle-a.ts", "to": "src/cycle-b.ts", "specifier": "./cycle-b.js", "syntaxKind": "static-import", "edgeClass": "value" },
+    { "from": "src/cycle-b.ts", "to": "src/app.ts", "specifier": "./app.js", "syntaxKind": "static-import", "edgeClass": "value" },
+    { "from": "src/lib/money.ts", "to": "src/main.ts", "specifier": "../main.js", "syntaxKind": "static-import", "edgeClass": "value" },
+    { "from": "src/main.ts", "to": "src/app.ts", "specifier": "./app.js", "syntaxKind": "static-import", "edgeClass": "value" }
+  ],
+  "newEdgesVersusBaseline": [
+    { "from": "src/lib/money.ts", "to": "src/main.ts", "specifier": "../main.js" }
+  ],
+  "impact": {
+    "src/lib/money.ts": {
+      "directImporters": ["src/app.ts"],
+      "originExcludedFromCount": true,
+      "cycleMember": true
+    }
+  },
+  "valueCycleGroups": [
+    ["src/app.ts", "src/cycle-a.ts", "src/cycle-b.ts", "src/lib/money.ts", "src/main.ts"]
+  ],
+  "coverage": {
+    "discoveredSourceFiles": 5,
+    "analyzedFiles": 5,
+    "skippedFiles": 0,
+    "parseFailures": 0,
+    "constructCounts": {
+      "internal": 6,
+      "external": 0,
+      "unresolved": 0,
+      "unsupported": 0,
+      "typeOnly": 0,
+      "mixed": 0
+    }
+  }
+}
