@@ -7,6 +7,7 @@ export {
   allowedOrigin,
   type Session,
 } from "./session.js";
+export { createAnalysisStore, type AnalysisStore } from "./store.js";
 export {
   createCancellableJob,
   type WorkerInbound,

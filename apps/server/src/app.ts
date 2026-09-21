@@ -2,18 +2,28 @@ import { existsSync } from "node:fs";
 import fastify from "fastify";
 import type { FastifyInstance } from "fastify";
 import { registerHealthRoute } from "./routes/health.js";
+import { registerScanRoutes } from "./routes/scans.js";
+import { registerSnapshotRoutes } from "./routes/snapshots.js";
+import { registerEvidenceRoutes } from "./routes/evidence.js";
+import { registerBoundaryRoutes } from "./routes/boundaries.js";
+import { registerSessionRoutes } from "./routes/session.js";
 import { registerSecurity } from "./security.js";
 import type { Session } from "./session.js";
+import { createAnalysisStore, type AnalysisStore } from "./store.js";
 
 export interface BuildAppOptions {
   session: Session;
   staticRoot?: string;
+  scanDelayMs?: number;
+  store?: AnalysisStore;
 }
 
 export async function buildApp(
   options: BuildAppOptions,
 ): Promise<FastifyInstance> {
+  const store = options.store ?? createAnalysisStore();
   const app = fastify({
+    bodyLimit: 2_000_000,
     logger:
       process.env.VITEST === "true"
         ? false
@@ -29,6 +39,11 @@ export async function buildApp(
 
   registerSecurity(app, options.session);
   registerHealthRoute(app, options.session);
+  registerScanRoutes(app, options.session, store, options.scanDelayMs);
+  registerSnapshotRoutes(app, store);
+  registerEvidenceRoutes(app, store);
+  registerBoundaryRoutes(app, store);
+  registerSessionRoutes(app, options.session, store);
 
   if (options.staticRoot !== undefined && existsSync(options.staticRoot)) {
     const staticPlugin = await import("@fastify/static");

@@ -1,5 +1,5 @@
 export const SCHEMA_VERSION = "1.0.0";
-export const ENGINE_VERSION = "0.3.0-r3";
+export const ENGINE_VERSION = "0.7.0-r7";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [
@@ -54,6 +54,14 @@ export {
   syntaxClassOf,
 } from "./identity.js";
 export { validateAnalysisSnapshot, SnapshotValidationError } from "./validate.js";
+export type {
+  CompatibilityStatus,
+  EdgeChange,
+  EvidenceResponse,
+  NodeChange,
+  ScanProgressResponse,
+  SnapshotComparison,
+} from "./comparison.js";
 export type {
   AnalysisSnapshot,
   ConstructCounts,

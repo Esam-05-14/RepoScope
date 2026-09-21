@@ -9,6 +9,8 @@
     "dev": "vite build"
   },
   "dependencies": {
+    "@reposcope/contracts": "0.1.0-r1",
+    "@reposcope/graph": "0.1.0-r1",
     "@xyflow/react": "12.11.6",
     "react": "19.3.0",
     "react-dom": "19.3.0"

@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
-import { lstatSync, readdirSync } from "node:fs";
 import path from "node:path";
 import type { LanguageId, ParseStatus } from "@reposcope/contracts";
 import { languageFromPath, SOURCE_EXTENSIONS } from "@reposcope/parser-ts";
-import { ConfinedFilesystemHost } from "./confined-fs.js";
+import type { AnalysisFilesystemHost } from "./host.js";
 import { toPosixRelative } from "./paths.js";
 
 export const DEFAULT_LIMITS = {
@@ -60,7 +59,7 @@ function decodeText(bytes: Buffer): string | undefined {
 }
 
 export function inventoryRepository(
-  host: ConfinedFilesystemHost,
+  host: AnalysisFilesystemHost,
 ): InventoryResult {
   const files: InventoryFile[] = [];
   const configFiles: string[] = [];
@@ -70,36 +69,29 @@ export function inventoryRepository(
   let analyzedBytes = 0;
 
   const visit = (directory: string): void => {
-    let names: string[] = [];
-    try {
-      names = readdirSync(directory);
-    } catch {
-      return;
-    }
+    const names = host.readDirectory(directory);
     for (const name of names) {
       const absolute = path.join(directory, name);
       if (host.confine(absolute) === null) {
         continue;
       }
-      let stat;
-      try {
-        stat = lstatSync(absolute);
-      } catch {
+      const stat = host.stat(absolute);
+      if (stat === undefined) {
         continue;
       }
-      if (stat.isSymbolicLink()) {
+      if (stat.isSymbolicLink) {
         skippedFiles += 1;
         truncations.push(`symlink-skipped:${toPosixRelative(host.root, absolute)}`);
         continue;
       }
-      if (stat.isDirectory()) {
+      if (stat.isDirectory) {
         if (SKIP_DIRECTORIES.has(name)) {
           continue;
         }
         visit(absolute);
         continue;
       }
-      if (!stat.isFile()) {
+      if (!stat.isFile) {
         continue;
       }
       if (name === "tsconfig.json" || name === "jsconfig.json") {

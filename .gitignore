@@ -13,6 +13,8 @@ Thumbs.db
 !.env.example
 apps/web/playwright-report/
 apps/web/test-results/
+playwright-report/
+test-results/
 .reposcope/
 tmp/
 *.tsbuildinfo

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@reposcope/contracts": "0.1.0-r1",
+    "@reposcope/engine": "0.1.0-r1",
     "@reposcope/server": "0.1.0-r1"
   }
 }

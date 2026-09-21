@@ -8,6 +8,7 @@ export type ShellState =
   | "canceled"
   | "failed"
   | "partial"
+  | "completed"
   | "error";
 
 export function StatusLine(props: {

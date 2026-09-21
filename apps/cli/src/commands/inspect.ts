@@ -1,6 +1,6 @@
 import path from "node:path";
 import { createSession, startServer } from "@reposcope/server";
-import { canonicalizeDirectory, defaultStartDir, demoRoot } from "../root.js";
+import { bundledFixtures, canonicalizeDirectory, defaultStartDir, demoRoot } from "../root.js";
 import { openBrowser } from "../open-browser.js";
 
 export interface InspectOptions {
@@ -32,6 +32,8 @@ export async function inspectCommand(
     rootKind: selected.kind,
     rootLabel: selected.label,
     canonicalRoot: selected.canonicalRoot,
+    fixtureCatalog: selected.kind === "demo" ? bundledFixtures(startDir) : {},
+    token: process.env.REPOSCOPE_SESSION_TOKEN,
   });
 
   const server = await startServer({

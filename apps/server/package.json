@@ -15,6 +15,7 @@
   "dependencies": {
     "@fastify/static": "10.1.4",
     "@reposcope/contracts": "0.1.0-r1",
+    "@reposcope/engine": "0.1.0-r1",
     "fastify": "5.12.5"
   }
 }

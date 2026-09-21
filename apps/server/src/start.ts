@@ -8,6 +8,7 @@ export interface StartServerOptions {
   session: Session;
   port?: number;
   staticRoot?: string;
+  scanDelayMs?: number;
 }
 
 export interface RunningServer {
@@ -23,6 +24,7 @@ export async function startServer(
   const app = await buildApp({
     session: options.session,
     staticRoot: options.staticRoot,
+    scanDelayMs: options.scanDelayMs,
   });
 
   await app.listen({

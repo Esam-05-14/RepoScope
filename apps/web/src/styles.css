@@ -8,8 +8,188 @@ body {
   margin: 0;
 }
 
-main {
-  max-width: 40rem;
-  margin: 2rem auto;
+a {
+  color: #163f5f;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #fff;
+  border-bottom: 1px solid #d9d3c7;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.topbar nav a[aria-current="page"] {
+  font-weight: 700;
+}
+
+.status-chip {
+  margin-left: auto;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.page {
+  max-width: 52rem;
+  margin: 1.5rem auto;
   padding: 0 1rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.muted {
+  color: #5c574e;
+}
+
+.explorer {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr) 22rem;
+  min-height: calc(100vh - 3.25rem);
+}
+
+.tree-pane,
+.inspector {
+  background: #fff;
+  border-right: 1px solid #d9d3c7;
+  overflow: auto;
+}
+
+.inspector {
+  border-right: 0;
+  border-left: 1px solid #d9d3c7;
+  padding: 0.75rem;
+}
+
+.file-list,
+.relation-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.file-list button,
+.relation-list button {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: 0;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+}
+
+.file-list button.selected,
+.file-list button:hover,
+.relation-list button:hover {
+  background: #ece7dc;
+}
+
+.search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+}
+
+.center-pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.center-toolbar {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+}
+
+.graph-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 24rem;
+}
+
+.graph-canvas {
+  flex: 1;
+  min-height: 20rem;
+}
+
+.cycles {
+  padding: 0.75rem;
+  border-top: 1px solid #d9d3c7;
+}
+
+.inspector pre {
+  overflow: auto;
+  background: #111;
+  color: #f6f4ef;
+  padding: 0.75rem;
+}
+
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.25rem 0.75rem 0.25rem 0;
+}
+
+@media (max-width: 1024px) {
+  .explorer {
+    grid-template-columns: minmax(0, 1fr) 22rem;
+  }
+
+  .tree-pane {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .explorer {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-pane {
+    display: none;
+  }
+
+  .explorer.inspector-open .inspector {
+    position: fixed;
+    inset: auto 0 0 0;
+    max-height: 70vh;
+    background: #fff;
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 16%);
+  }
 }

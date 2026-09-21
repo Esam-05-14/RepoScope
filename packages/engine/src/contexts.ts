@@ -6,7 +6,7 @@ import {
   parseProjectConfig,
   type ParsedProjectConfig,
 } from "@reposcope/parser-ts";
-import type { ConfinedFilesystemHost } from "./filesystem/confined-fs.js";
+import type { AnalysisFilesystemHost } from "./filesystem/host.js";
 import { toPosixRelative } from "./filesystem/paths.js";
 
 export interface BoundContext {
@@ -19,7 +19,7 @@ function configKind(fileName: string): "tsconfig" | "jsconfig" {
 }
 
 function extendsOutside(
-  host: ConfinedFilesystemHost,
+  host: AnalysisFilesystemHost,
   configPath: string,
 ): boolean {
   const text = host.readFile(configPath);
@@ -39,7 +39,7 @@ function extendsOutside(
 }
 
 export function loadProjectContexts(
-  host: ConfinedFilesystemHost,
+  host: AnalysisFilesystemHost,
   configFiles: readonly string[],
 ): BoundContext[] {
   const loaded: BoundContext[] = [];

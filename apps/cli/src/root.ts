@@ -49,6 +49,27 @@ export function canonicalizeDirectory(input: string): string {
   return canonical;
 }
 
+const DEMO_FIXTURE_IDS = [
+  "esm-baseline",
+  "esm-revised",
+  "unresolved-import",
+  "type-only-cycle",
+  "duplicate-imports",
+  "self-import",
+  "malformed-source",
+  "alias-paths",
+  "unsupported-constructs",
+] as const;
+
+export function bundledFixtures(startDir: string): Record<string, string> {
+  const workspace = findWorkspaceRoot(startDir);
+  const catalog: Record<string, string> = {};
+  for (const id of DEMO_FIXTURE_IDS) {
+    catalog[id] = canonicalizeDirectory(path.join(workspace, "fixtures", id));
+  }
+  return catalog;
+}
+
 export function defaultStartDir(): string {
   return path.dirname(fileURLToPath(import.meta.url));
 }

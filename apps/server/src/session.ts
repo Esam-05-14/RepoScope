@@ -9,6 +9,7 @@ export interface Session {
   readonly rootKind: RootKind;
   readonly rootLabel: string;
   readonly canonicalRoot: string | null;
+  readonly fixtureCatalog: Readonly<Record<string, string>>;
   scanStatus: ScanStatus;
   boundPort: number | null;
 }
@@ -22,12 +23,14 @@ export function createSession(input: {
   rootLabel: string;
   canonicalRoot: string | null;
   token?: string;
+  fixtureCatalog?: Readonly<Record<string, string>>;
 }): Session {
   return {
     token: input.token ?? createSessionToken(),
     rootKind: input.rootKind,
     rootLabel: input.rootLabel,
     canonicalRoot: input.canonicalRoot,
+    fixtureCatalog: input.fixtureCatalog ?? {},
     scanStatus: "idle",
     boundPort: null,
   };

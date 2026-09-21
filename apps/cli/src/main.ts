@@ -22,6 +22,8 @@ async function main(argv: string[]): Promise<void> {
     options: {
       demo: { type: "boolean", default: false },
       port: { type: "string" },
+      out: { type: "string" },
+      commit: { type: "string" },
       "no-open": { type: "boolean", default: false },
       help: { type: "boolean", default: false },
     },
@@ -29,17 +31,27 @@ async function main(argv: string[]): Promise<void> {
 
   if (values.help === true || positionals[0] === undefined) {
     process.stdout.write(
-      "Usage: reposcope inspect [path] [--demo] [--port 8787] [--no-open]\n",
+      "Usage:\n  reposcope inspect [path] [--demo] [--port 8787] [--no-open]\n  reposcope scan [path] [--demo] [--out file] [--commit rev]\n  reposcope compare <base.json> <target.json>\n",
     );
     return;
   }
 
   const command = positionals[0];
   if (command === "scan") {
-    scanCommand();
+    scanCommand({
+      targetPath: positionals[1],
+      demo: values.demo === true,
+      out: values.out,
+      commit: values.commit,
+    });
+    return;
   }
   if (command === "compare") {
-    compareCommand();
+    if (positionals[1] === undefined || positionals[2] === undefined) {
+      throw new Error("compare requires two snapshot files");
+    }
+    compareCommand(positionals[1], positionals[2]);
+    return;
   }
   if (command !== "inspect") {
     throw new Error(`unknown command: ${command}`);

@@ -1,28 +1,19 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
-import type { ApiError, ApiErrorCode } from "@reposcope/contracts";
-import {
-  allowedHost,
-  allowedOrigin,
-  createDiagnosticId,
-  type Session,
-} from "./session.js";
+import { sendError } from "./errors.js";
+import { allowedHost, allowedOrigin, type Session } from "./session.js";
 
 const CSP =
   "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; font-src 'none'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'";
 
-function sendError(
-  reply: FastifyReply,
-  status: number,
-  code: ApiErrorCode,
-  message: string,
-): void {
-  const body: ApiError = {
-    code,
-    message,
-    diagnosticId: createDiagnosticId(),
-  };
-  void reply.status(status).send(body);
-}
+const PUBLIC_GET_PATHS = new Set([
+  "/",
+  "/index.html",
+  "/explore",
+  "/coverage",
+  "/compare",
+  "/settings",
+  "/favicon.ico",
+]);
 
 function readBearer(header: string | undefined): string | null {
   if (header === undefined) {
@@ -76,10 +67,8 @@ export function registerSecurity(app: FastifyInstance, session: Session): void {
 
     const url = request.url.split("?")[0] ?? request.url;
     const isPublicAsset =
-      url === "/" ||
-      url === "/index.html" ||
-      url.startsWith("/assets/") ||
-      url === "/favicon.ico";
+      (request.method === "GET" || request.method === "HEAD") &&
+      (PUBLIC_GET_PATHS.has(url) || url.startsWith("/assets/"));
 
     if (isPublicAsset) {
       return;

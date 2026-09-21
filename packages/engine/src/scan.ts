@@ -14,6 +14,7 @@ import {
   type ImportObservation,
   type Resolution,
   type SemanticEdge,
+  type SnapshotKind,
 } from "@reposcope/contracts";
 import {
   extractConstructs,
@@ -25,12 +26,37 @@ import {
 import { inferredContext, loadProjectContexts, selectContext } from "./contexts.js";
 import { contentManifestDigestOf, graphDigestOf } from "./digest.js";
 import { ConfinedFilesystemHost } from "./filesystem/confined-fs.js";
+import type { AnalysisFilesystemHost } from "./filesystem/host.js";
 import { DEFAULT_LIMITS, inventoryRepository } from "./filesystem/inventory.js";
 import { isInsideRoot, toPosixRelative } from "./filesystem/paths.js";
+
+export interface ScanProgress {
+  phase: "inventory" | "parse" | "graph";
+  discoveredFiles: number;
+  analyzedFiles: number;
+}
 
 export interface ScanOptions {
   root: string;
   edgePolicy?: EdgePolicy;
+  host?: AnalysisFilesystemHost;
+  scopeKind?: SnapshotKind;
+  selectedCommit?: string;
+  scanId?: string;
+  shouldCancel?: () => boolean;
+  onProgress?: (progress: ScanProgress) => void;
+}
+
+export interface ScanResult {
+  snapshot: AnalysisSnapshot | undefined;
+  canceled: boolean;
+}
+
+export class ScanCanceledError extends Error {
+  constructor() {
+    super("scan canceled");
+    this.name = "ScanCanceledError";
+  }
 }
 
 function repositoryIdentity(root: string): string {
@@ -54,7 +80,7 @@ function classifyResolution(input: {
   specifier: string;
   containingFile: string;
   resolved: string | undefined;
-  host: ConfinedFilesystemHost;
+  host: AnalysisFilesystemHost;
   inventoryIds: ReadonlySet<string>;
   contextId: string;
 }): Resolution {
@@ -121,10 +147,22 @@ function classifyResolution(input: {
   };
 }
 
-export function scanRepository(options: ScanOptions): AnalysisSnapshot {
+export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
   const root = path.resolve(options.root);
-  const host = new ConfinedFilesystemHost(root);
+  const host = options.host ?? new ConfinedFilesystemHost(root);
+  const canceled = (): boolean => options.shouldCancel?.() === true;
+  if (canceled()) {
+    return { snapshot: undefined, canceled: true };
+  }
+  options.onProgress?.({
+    phase: "inventory",
+    discoveredFiles: 0,
+    analyzedFiles: 0,
+  });
   const inventory = inventoryRepository(host);
+  if (canceled()) {
+    return { snapshot: undefined, canceled: true };
+  }
   const inferred = inferredContext();
   const loaded = loadProjectContexts(host, inventory.configFiles);
   const contexts = [inferred, ...loaded];
@@ -137,7 +175,16 @@ export function scanRepository(options: ScanOptions): AnalysisSnapshot {
   let parseFailures = 0;
   let analyzedFiles = 0;
 
+  options.onProgress?.({
+    phase: "parse",
+    discoveredFiles: inventory.discoveredFiles,
+    analyzedFiles: 0,
+  });
+
   for (const file of inventory.files) {
+    if (canceled()) {
+      return { snapshot: undefined, canceled: true };
+    }
     const context = selectContext(file.absolutePath, root, loaded, inferred);
     if (file.text === undefined) {
       nodes.push({
@@ -249,13 +296,25 @@ export function scanRepository(options: ScanOptions): AnalysisSnapshot {
   nodes.sort((a, b) => (a.id < b.id ? -1 : 1));
   observations.sort((a, b) => (a.id < b.id ? -1 : 1));
 
+  if (canceled()) {
+    return { snapshot: undefined, canceled: true };
+  }
+
+  options.onProgress?.({
+    phase: "graph",
+    discoveredFiles: inventory.discoveredFiles,
+    analyzedFiles,
+  });
+
   const snapshot: AnalysisSnapshot = {
     schemaVersion: SCHEMA_VERSION,
     engineVersion: ENGINE_VERSION,
     parserVersion: PARSER_VERSION,
+    scanId: options.scanId,
     scope: {
-      kind: "working-tree",
+      kind: options.scopeKind ?? "working-tree",
       repositoryIdentity: repositoryIdentity(root),
+      selectedCommit: options.selectedCommit,
       edgePolicy,
       limits: { ...DEFAULT_LIMITS },
       truncated: inventory.truncations.length > 0,
@@ -276,5 +335,13 @@ export function scanRepository(options: ScanOptions): AnalysisSnapshot {
     contentManifestDigest: contentManifestDigestOf(nodes),
   };
   validateAnalysisSnapshot(snapshot);
-  return snapshot;
+  return { snapshot, canceled: false };
+}
+
+export function scanRepository(options: ScanOptions): AnalysisSnapshot {
+  const result = scanRepositoryDetailed(options);
+  if (result.canceled || result.snapshot === undefined) {
+    throw new ScanCanceledError();
+  }
+  return result.snapshot;
 }

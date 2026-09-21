@@ -1,15 +1,15 @@
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import type { FilesystemHost } from "@reposcope/parser-ts";
+import {
+  type AnalysisFilesystemHost,
+  type FileStat,
+  type ReadAttempt,
+} from "./host.js";
 import { isInsideRoot, isUncPath } from "./paths.js";
 
-export interface ReadAttempt {
-  path: string;
-  allowed: boolean;
-  reason?: "outside-root" | "symlink" | "missing" | "not-a-file";
-}
+export type { FileStat, ReadAttempt } from "./host.js";
 
-export class ConfinedFilesystemHost implements FilesystemHost {
+export class ConfinedFilesystemHost implements AnalysisFilesystemHost {
   readonly attempts: ReadAttempt[] = [];
   readonly deniedReads: string[] = [];
 
@@ -133,5 +133,23 @@ export class ConfinedFilesystemHost implements FilesystemHost {
 
   getCurrentDirectory(): string {
     return this.root;
+  }
+
+  stat(fileName: string): FileStat | undefined {
+    const confined = this.confine(fileName);
+    if (confined === null) {
+      this.audit(fileName, false, "outside-root");
+      return undefined;
+    }
+    try {
+      const stat = lstatSync(confined);
+      return {
+        isFile: stat.isFile(),
+        isDirectory: stat.isDirectory(),
+        isSymbolicLink: stat.isSymbolicLink(),
+      };
+    } catch {
+      return undefined;
+    }
   }
 }
