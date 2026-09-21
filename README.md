@@ -2,7 +2,7 @@
 
 Local, read-only TypeScript and JavaScript architecture explorer. It turns supported source-level imports into an evidence-linked dependency graph so a developer can ask: **what depends on this file, and what evidence should I inspect before changing it?**
 
-This repository is **in development**. R1 provides workspaces, an authenticated loopback shell, and a prebuilt UI placeholder. There is not yet a working scanner, graph, or evidence inspector.
+This repository is **in development**. Scanning and graph algorithms exist. There is not yet an investigation UI.
 
 ## Status
 
@@ -11,7 +11,8 @@ This repository is **in development**. R1 provides workspaces, an authenticated 
 | R0 | Freeze contracts, versions, and safety boundaries | Done |
 | R1 | Workspaces, CLI, authenticated loopback health | Done |
 | R2 | Confined inventory, parser, observations, coverage | Done |
-| R3–R5 | Graph algorithms, investigation UI, snapshot compare | Not started |
+| R3 | Adjacency, reverse traversal, cycle groups, digest | Done |
+| R4–R5 | Investigation UI and snapshot compare | Not started |
 | R6 | Optional P1 Git adapter and boundary policy | Deferred until P0 gates pass |
 | R7 | Packaging, benchmarks, public docs | Not started |
 

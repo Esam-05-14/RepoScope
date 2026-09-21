@@ -1,5 +1,5 @@
 export const SCHEMA_VERSION = "1.0.0";
-export const ENGINE_VERSION = "0.2.0-r2";
+export const ENGINE_VERSION = "0.3.0-r3";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [
