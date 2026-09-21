@@ -10,7 +10,8 @@ This repository is **in development**. R1 provides workspaces, an authenticated 
 | --- | --- | --- |
 | R0 | Freeze contracts, versions, and safety boundaries | Done |
 | R1 | Workspaces, CLI, authenticated loopback health | Done |
-| R2–R5 | P0 engine, investigation UI, snapshot compare | Not started |
+| R2 | Confined inventory, parser, observations, coverage | Done |
+| R3–R5 | Graph algorithms, investigation UI, snapshot compare | Not started |
 | R6 | Optional P1 Git adapter and boundary policy | Deferred until P0 gates pass |
 | R7 | Packaging, benchmarks, public docs | Not started |
 

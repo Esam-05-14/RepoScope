@@ -13,6 +13,7 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@reposcope/contracts": "0.1.0-r1",
     "typescript": "6.0.3"
   }
 }

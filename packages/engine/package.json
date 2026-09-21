@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@reposcope/contracts": "0.1.0-r1",
-    "@reposcope/graph": "0.1.0-r1"
+    "@reposcope/graph": "0.1.0-r1",
+    "@reposcope/parser-ts": "0.1.0-r1"
   }
 }
