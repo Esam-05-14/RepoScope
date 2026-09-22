@@ -57,6 +57,10 @@ test("scan fixture, inspect money.ts evidence, and open coverage", async ({ page
     await page.getByRole("button", { name: "Scan", exact: true }).click();
     await expect(page.getByText("Discovered files: 5")).toBeVisible({ timeout: 20_000 });
     await page.getByRole("link", { name: "Explore" }).click();
+    await expect(page.getByTestId("lens-investigation")).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("lens-libraries").click();
+    await expect(page.getByTestId("lens-libraries")).toHaveAttribute("aria-pressed", "true");
+    await page.getByTestId("lens-investigation").click();
     await page.getByRole("button", { name: "src/lib/money.ts", exact: true }).click();
     await expect(page.getByText("Direct importers: src/app.ts")).toBeVisible();
     await expect(page.getByText("src/main.ts → src/app.ts → src/lib/money.ts")).toBeVisible();

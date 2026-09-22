@@ -1,4 +1,5 @@
 import type { AnalysisSnapshot, LanguageId, ParseStatus } from "./snapshot.js";
+import { externalKind, fileRole, type ViewLens } from "./view.js";
 
 export const BRIEF_CLAIMS = [
   "Observed file-level dependencies only. A -> B means A imports B.",
@@ -29,6 +30,7 @@ export type BriefDensity = "compact" | "full";
 
 export interface BriefFormatOptions {
   density?: BriefDensity;
+  lens?: ViewLens;
 }
 
 export interface FileDegree {
@@ -174,7 +176,7 @@ export function buildInvestigationBrief(
       unsupported.push({
         importer: observation.importerId,
         specifier: observation.specifier,
-        reason: observation.syntaxKind,
+        reason: observation.resolution.reasonCode,
       });
     }
   }
@@ -227,24 +229,55 @@ function take(values: readonly string[], limit: number): string[] {
   return values.length <= limit ? [...values] : [...values.slice(0, limit), `… +${values.length - limit}`];
 }
 
+function sourceFileIds(brief: InvestigationBrief): Set<string> {
+  return new Set(brief.files.filter((file) => fileRole(file.id) === "source").map((file) => file.id));
+}
+
 export function formatInvestigationBrief(
   brief: InvestigationBrief,
   options: BriefFormatOptions = {},
 ): string {
   const compact = options.density !== "full";
+  const libraries = options.lens === "libraries";
+  const sourceIds = sourceFileIds(brief);
   const adjLimit = compact ? 40 : brief.adjacency.length;
   const reverseLimit = compact ? 25 : brief.reverse.length;
   const hubIds = new Set(brief.hubs.map((hub) => hub.id));
+  const hubs = libraries
+    ? brief.hubs
+    : brief.hubs.filter((hub) => fileRole(hub.id) !== "config");
+  const entrypoints = libraries
+    ? brief.entrypoints
+    : brief.entrypoints.filter((id) => fileRole(id) === "source");
+  const leaves = libraries
+    ? brief.leaves
+    : brief.leaves.filter((id) => fileRole(id) === "source");
+  const adjacencySource = libraries
+    ? brief.adjacency
+    : brief.adjacency.filter((row) => sourceIds.has(row.from));
   const adjacency = compact
-    ? [...brief.adjacency]
+    ? [...adjacencySource]
         .sort((left, right) => right.to.length - left.to.length || left.from.localeCompare(right.from))
         .slice(0, adjLimit)
-    : brief.adjacency;
+    : adjacencySource;
+  const reverseSource = libraries
+    ? brief.reverse
+    : brief.reverse.filter((row) => sourceIds.has(row.to));
   const reverse = compact
-    ? brief.reverse.filter((row) => hubIds.has(row.to)).slice(0, reverseLimit)
-    : brief.reverse;
+    ? reverseSource.filter((row) => hubIds.has(row.to)).slice(0, reverseLimit)
+    : reverseSource;
+  const npm = brief.externals.filter((item) => externalKind(item.name) === "library");
+  const builtins = brief.externals.filter((item) => externalKind(item.name) === "builtin");
+  const title = libraries
+    ? compact
+      ? "RepoScope library catalog (compact)"
+      : "RepoScope library catalog (full)"
+    : compact
+      ? "RepoScope investigation brief (compact)"
+      : "RepoScope investigation brief (full)";
   const lines: string[] = [
-    compact ? "RepoScope investigation brief (compact)" : "RepoScope investigation brief (full)",
+    title,
+    libraries ? "lens libraries" : "lens your-code",
     `v ${brief.schemaVersion} ${brief.engineVersion} ${brief.parserVersion}`,
     `digest ${brief.graphDigest}`,
     `scope ${brief.scope.kind} policy=${brief.scope.edgePolicy} files=${brief.scope.files} edges=${brief.scope.internalEdges}${brief.scope.truncated ? " truncated" : ""}`,
@@ -253,13 +286,13 @@ export function formatInvestigationBrief(
     ...brief.claims.map((claim) => `- ${claim}`),
     "",
     "hubs (most imported-by)",
-    ...brief.hubs.map((hub) => `${hub.id} in=${hub.importedBy} out=${hub.imports} ${hub.language} ${hub.parseStatus}`),
+    ...hubs.map((hub) => `${hub.id} in=${hub.importedBy} out=${hub.imports} ${hub.language} ${hub.parseStatus}`),
     "",
     "entrypoints (import others, not imported)",
-    take(brief.entrypoints, compact ? 20 : 200).join("\n") || "(none)",
+    take(entrypoints, compact ? 20 : 200).join("\n") || "(none)",
     "",
     "leaves (imported, import none)",
-    take(brief.leaves, compact ? 20 : 200).join("\n") || "(none)",
+    take(leaves, compact ? 20 : 200).join("\n") || "(none)",
     "",
     compact
       ? `adjacency A>B,C (top ${adjacency.length} by fan-out; use full for every file)`
@@ -296,18 +329,39 @@ export function formatInvestigationBrief(
     "barrel files (internal edges are export-from only)",
     take(brief.barrels, compact ? 15 : 40).join("\n") || "(none)",
     "",
-    "declared package.json names (not installed, not resolved as internals)",
-    brief.declaredPackages.length === 0
-      ? "(none)"
-      : take(brief.declaredPackages, compact ? 40 : 512).join("\n"),
+    libraries
+      ? "declared package.json names (not installed, not resolved as internals)"
+      : "library counts (full importer lists are in the libraries lens)",
+    libraries
+      ? brief.declaredPackages.length === 0
+        ? "(none)"
+        : take(brief.declaredPackages, compact ? 40 : 512).join("\n")
+      : npm.length === 0
+        ? "(none)"
+        : npm
+            .slice(0, compact ? 20 : 80)
+            .map((item) => `${item.name} ${item.importers.length}`)
+            .join("\n"),
     "",
-    "observed externals",
-    brief.externals.length === 0
-      ? "(none)"
-      : brief.externals
-          .slice(0, compact ? 20 : 80)
-          .map((item) => `${item.name} <- ${item.importers.join(",")}`)
-          .join("\n"),
+    libraries ? "observed libraries" : "isolated files omitted from your-code adjacency",
+    libraries
+      ? npm.length === 0
+        ? "(none)"
+        : npm
+            .slice(0, compact ? 20 : 80)
+            .map((item) => `${item.name} <- ${item.importers.join(",")}`)
+            .join("\n")
+      : take(brief.isolated, compact ? 12 : 80).join("\n") || "(none)",
+    "",
+    "node/bun builtins",
+    !libraries
+      ? `${builtins.length} (open the libraries lens)`
+      : builtins.length === 0
+        ? "(none)"
+        : builtins
+            .slice(0, compact ? 20 : 80)
+            .map((item) => `${item.name} <- ${item.importers.join(",")}`)
+            .join("\n"),
     "",
     "unresolved",
     brief.unresolved.length === 0

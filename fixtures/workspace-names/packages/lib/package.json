@@ -1,0 +1,13 @@
+{
+  "name": "@demo/named-lib",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./extra": "./src/extra.ts"
+  }
+}

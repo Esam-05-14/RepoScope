@@ -42,6 +42,38 @@ describe("richer workspace resolution", () => {
   });
 });
 
+describe("workspace package names", () => {
+  it("resolves a workspace package name and subpath without tsconfig paths", () => {
+    const snapshot = scanRepository({
+      root: path.join(workspace, "fixtures", "workspace-names"),
+    });
+    const root = snapshot.observations.find(
+      (item) =>
+        item.importerId === "packages/app/src/index.ts" && item.specifier === "@demo/named-lib",
+    );
+    const extra = snapshot.observations.find(
+      (item) =>
+        item.importerId === "packages/app/src/index.ts" && item.specifier === "@demo/named-lib/extra",
+    );
+    expect(root?.resolution).toMatchObject({
+      status: "internal",
+      targetId: "packages/lib/src/index.ts",
+      reasonCode: "WORKSPACE_PACKAGE",
+    });
+    expect(extra?.resolution).toMatchObject({
+      status: "internal",
+      targetId: "packages/lib/src/extra.ts",
+      reasonCode: "WORKSPACE_PACKAGE",
+    });
+    expect(
+      snapshot.semanticEdges.some(
+        (edge) =>
+          edge.importerId === "packages/app/src/index.ts" && edge.targetId === "packages/lib/src/index.ts",
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("CommonJS require extraction", () => {
   it("treats a string require as a supported observed dependency", () => {
     const snapshot = scanRepository({

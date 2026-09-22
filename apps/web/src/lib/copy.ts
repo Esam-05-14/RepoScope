@@ -13,6 +13,10 @@ export const COPY = {
     "Compact observed-dependency brief for a human or a separately chosen assistant. RepoScope does not call a model.",
   briefPrivacy:
     "The brief lists repository paths. Pasting it into a cloud assistant leaves this machine.",
+  yourCode:
+    "Your code: observed file imports inside this repository. Workspace package names resolve to those files when package.json exports or entry fields point at inventoried source.",
+  libraries:
+    "Libraries: observed npm and node:/bun: specifiers. RepoScope does not install or execute them. They are not internal graph nodes unless you open this lens.",
   asset: "Stylesheets and other non-source specifiers are recorded as unsupported assets, not silent omissions.",
   dynamicImport: "Dynamic import() is omitted unless you opt in. A string specifier is still not runtime proof.",
   component:

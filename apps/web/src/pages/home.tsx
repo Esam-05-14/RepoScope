@@ -2,6 +2,8 @@ import { useMemo, useState, type ReactElement } from "react";
 import { downloadSnapshot } from "../lib/api.js";
 import { briefFromSnapshot, copyText, downloadText } from "../lib/brief.js";
 import { COPY } from "../lib/copy.js";
+import { useViewLens } from "../lib/lens.js";
+import { externalKind } from "@reposcope/contracts";
 import { navigate } from "../lib/router.js";
 import { statusLabel } from "../status-line.js";
 import { useWorkspace } from "../workspace.js";
@@ -28,11 +30,12 @@ export function HomePage(props: {
   const [incremental, setIncremental] = useState(true);
   const [includeDynamicImport, setIncludeDynamicImport] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lens, setLens] = useViewLens();
   const snapshot = workspace.snapshot;
   const progress = workspace.scanProgress;
   const packed = useMemo(
-    () => (snapshot === undefined ? undefined : briefFromSnapshot(snapshot)),
-    [snapshot],
+    () => (snapshot === undefined ? undefined : briefFromSnapshot(snapshot, "compact", lens)),
+    [snapshot, lens],
   );
 
   function withScanOptions(body: Record<string, unknown>): Record<string, unknown> {
@@ -60,9 +63,9 @@ export function HomePage(props: {
     <main className="page page-wide">
       <h1>Overview</h1>
       <p>
-        Local investigation of observed source-level dependencies. Contributors scan once, read the
-        graph, then paste the compact brief into their own assistant instead of asking it to rediscover
-        imports. RepoScope does not call a model. {COPY.briefPrivacy} Arrow A → B means A imports B.
+        Local investigation of observed source-level dependencies. Your-code view is the file graph
+        a developer reads first. Libraries view keeps the full specifier catalog. RepoScope does not
+        call a model. {COPY.briefPrivacy} Arrow A → B means A imports B.
       </p>
       <p>
         {statusLabel(props.status)} · {rootCaption(props.rootKind)}
@@ -225,6 +228,23 @@ export function HomePage(props: {
       ) : null}
       {snapshot !== undefined && packed !== undefined ? (
         <>
+          <div className="actions">
+            <button
+              type="button"
+              aria-pressed={lens === "investigation"}
+              onClick={() => setLens("investigation")}
+            >
+              Your code
+            </button>
+            <button
+              type="button"
+              aria-pressed={lens === "libraries"}
+              onClick={() => setLens("libraries")}
+            >
+              Libraries
+            </button>
+          </div>
+          <p className="muted">{lens === "libraries" ? COPY.libraries : COPY.yourCode}</p>
           <section className="card">
             <h2>Coverage snapshot</h2>
             <ul className="metric-grid">
@@ -253,99 +273,128 @@ export function HomePage(props: {
                 : ""}
             </p>
           </section>
-          <section className="card">
-            <h2>Most imported files</h2>
-            <p className="muted">{COPY.impact}</p>
-            {packed.brief.hubs.length === 0 ? (
-              <p>No internal imported-by counts under the current edge policy.</p>
-            ) : (
-              <table data-testid="hub-table">
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Imported by</th>
-                    <th>Imports</th>
-                    <th>Lang</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {packed.brief.hubs.map((hub) => (
-                    <tr key={hub.id}>
-                      <td>{hub.id}</td>
-                      <td>{hub.importedBy}</td>
-                      <td>{hub.imports}</td>
-                      <td>{hub.language}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-          {packed.brief.componentEdges.length > 0 ? (
-            <section className="card">
-              <h2>Component coupling</h2>
-              <p className="muted">{COPY.component}</p>
-              <table data-testid="component-table">
-                <thead>
-                  <tr>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Observed file edges</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {packed.brief.componentEdges.slice(0, 16).map((edge) => (
-                    <tr key={`${edge.from}>${edge.to}`}>
-                      <td>{edge.from}</td>
-                      <td>{edge.to}</td>
-                      <td>{edge.fileEdges}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </section>
-          ) : null}
-          <section className="card">
-            <h2>Cycle groups</h2>
-            <p className="muted">{COPY.cycle}</p>
-            {packed.brief.cycles.length === 0 ? (
-              <p>No observed cycles under the current edge policy.</p>
-            ) : (
-              <ul>
-                {packed.brief.cycles.map((group) => (
-                  <li key={group.join(",")}>{group.join(" → ")}</li>
-                ))}
-              </ul>
-            )}
-          </section>
-          {(snapshot.coverage.declaredPackages?.length ?? 0) > 0 ? (
-            <section className="card">
-              <h2>Declared package.json names</h2>
-              <p className="muted">
-                Names from package.json dependency fields. RepoScope does not install or execute them.
-              </p>
-              <ul>
-                {snapshot.coverage.declaredPackages?.slice(0, 40).map((name) => (
-                  <li key={name}>{name}</li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-          <section className="card">
-            <h2>External packages</h2>
-            {packed.brief.externals.length === 0 ? (
-              <p>No observed external package specifiers.</p>
-            ) : (
-              <ul>
-                {packed.brief.externals.slice(0, 20).map((item) => (
-                  <li key={item.name}>
-                    {item.name} · {item.importers.length} importer
-                    {item.importers.length === 1 ? "" : "s"}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          {lens === "investigation" ? (
+            <>
+              <section className="card">
+                <h2>Most imported files</h2>
+                <p className="muted">{COPY.impact}</p>
+                {packed.brief.hubs.length === 0 ? (
+                  <p>No internal imported-by counts under the current edge policy.</p>
+                ) : (
+                  <table data-testid="hub-table">
+                    <thead>
+                      <tr>
+                        <th>File</th>
+                        <th>Imported by</th>
+                        <th>Imports</th>
+                        <th>Lang</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {packed.brief.hubs.map((hub) => (
+                        <tr key={hub.id}>
+                          <td>{hub.id}</td>
+                          <td>{hub.importedBy}</td>
+                          <td>{hub.imports}</td>
+                          <td>{hub.language}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </section>
+              {packed.brief.componentEdges.length > 0 ? (
+                <section className="card">
+                  <h2>Component coupling</h2>
+                  <p className="muted">{COPY.component}</p>
+                  <table data-testid="component-table">
+                    <thead>
+                      <tr>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Observed file edges</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {packed.brief.componentEdges.slice(0, 16).map((edge) => (
+                        <tr key={`${edge.from}>${edge.to}`}>
+                          <td>{edge.from}</td>
+                          <td>{edge.to}</td>
+                          <td>{edge.fileEdges}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </section>
+              ) : null}
+              <section className="card">
+                <h2>Cycle groups</h2>
+                <p className="muted">{COPY.cycle}</p>
+                {packed.brief.cycles.length === 0 ? (
+                  <p>No observed cycles under the current edge policy.</p>
+                ) : (
+                  <ul>
+                    {packed.brief.cycles.map((group) => (
+                      <li key={group.join(",")}>{group.join(" → ")}</li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </>
+          ) : (
+            <>
+              {(snapshot.coverage.declaredPackages?.length ?? 0) > 0 ? (
+                <section className="card">
+                  <h2>Declared package.json names</h2>
+                  <p className="muted">
+                    Names from package.json dependency fields. RepoScope does not install or execute them.
+                  </p>
+                  <ul>
+                    {snapshot.coverage.declaredPackages?.slice(0, 40).map((name) => (
+                      <li key={name}>{name}</li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
+              <section className="card">
+                <h2>Observed libraries</h2>
+                {packed.brief.externals.filter((item) => externalKind(item.name) === "library").length ===
+                0 ? (
+                  <p>No observed npm package specifiers.</p>
+                ) : (
+                  <ul>
+                    {packed.brief.externals
+                      .filter((item) => externalKind(item.name) === "library")
+                      .slice(0, 40)
+                      .map((item) => (
+                        <li key={item.name}>
+                          {item.name} · {item.importers.length} importer
+                          {item.importers.length === 1 ? "" : "s"}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </section>
+              <section className="card">
+                <h2>Runtime builtins</h2>
+                {packed.brief.externals.filter((item) => externalKind(item.name) === "builtin").length ===
+                0 ? (
+                  <p>No observed node: or bun: specifiers.</p>
+                ) : (
+                  <ul>
+                    {packed.brief.externals
+                      .filter((item) => externalKind(item.name) === "builtin")
+                      .map((item) => (
+                        <li key={item.name}>
+                          {item.name} · {item.importers.length} importer
+                          {item.importers.length === 1 ? "" : "s"}
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </section>
+            </>
+          )}
           {packed.brief.unresolved.length > 0 ? (
             <section className="card">
               <h2>Unresolved specifiers</h2>

@@ -1,11 +1,11 @@
 import ts from "typescript";
-import type { LanguageId } from "@reposcope/contracts";
+import type { TsLanguageId } from "@reposcope/contracts";
 import { scriptKindFor } from "./language.js";
 
 export function parseSourceFile(
   fileName: string,
   text: string,
-  language: LanguageId,
+  language: TsLanguageId,
 ): ts.SourceFile {
   return ts.createSourceFile(
     fileName,

@@ -1,4 +1,5 @@
 import { writeFileSync } from "node:fs";
+import type { ViewLens } from "@reposcope/contracts";
 import { GitObjectFilesystemHost, investigationBriefMarkdown, scanRepository } from "@reposcope/engine";
 import { defaultStartDir, demoRoot, resolveCliTarget } from "../root.js";
 
@@ -8,6 +9,7 @@ export interface BriefCommandOptions {
   out?: string;
   commit?: string;
   density?: "compact" | "full";
+  lens?: ViewLens;
 }
 
 export async function briefCommand(options: BriefCommandOptions = {}): Promise<void> {
@@ -25,7 +27,11 @@ export async function briefCommand(options: BriefCommandOptions = {}): Promise<v
     scopeKind: host === undefined ? "working-tree" : "git-commit",
     selectedCommit: host?.commit,
   });
-  const { markdown } = investigationBriefMarkdown(snapshot, options.density ?? "compact");
+  const { markdown } = investigationBriefMarkdown(
+    snapshot,
+    options.density ?? "compact",
+    options.lens ?? "investigation",
+  );
   if (options.out !== undefined) {
     writeFileSync(options.out, markdown, "utf8");
     return;

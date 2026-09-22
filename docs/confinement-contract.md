@@ -17,7 +17,7 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 - Config that `extends` a file outside the root (unsupported; diagnostic).
 - `.git` working files as source inventory (the object store is a P1 adapter, not a source walk).
 - `node_modules`, common output dirs (`dist`, `build`, `coverage`, `.next`, `out`), binary files, and known credential filenames (`.env`, `*.pem`, `id_rsa`, `credentials.json`, and the list maintained at R2).
-- Inspected project JavaScript config as executable code. No `import()` of repo config. No `npm install` in the inspected tree.
+- Inspected project JavaScript config as executable code. No `import()` of repo config. No `npm install` in the inspected tree. `package.json` is read as JSON only; `exports` / `main` / `types` strings may map a workspace package name onto inventoried source. They are not executed.
 
 ## Limits (design, to validate)
 

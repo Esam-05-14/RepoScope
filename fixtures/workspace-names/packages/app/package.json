@@ -1,0 +1,7 @@
+{
+  "name": "@demo/named-app",
+  "private": true,
+  "dependencies": {
+    "@demo/named-lib": "*"
+  }
+}

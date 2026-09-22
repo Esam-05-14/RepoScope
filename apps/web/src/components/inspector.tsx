@@ -36,6 +36,8 @@ export function Inspector(props: {
   crossComponentImports?: { fileId: string; componentId: string }[];
   crossComponentImportedBy?: { fileId: string; componentId: string }[];
   coImported?: { fileId: string; sharedImporters: string[] }[];
+  libraryName?: string;
+  libraryImporters?: string[];
   onOpenEditor?: () => Promise<void>;
   onSelectNode?: (id: string) => void;
   onClose: () => void;
@@ -63,6 +65,21 @@ export function Inspector(props: {
           Close
         </button>
       </div>
+      {props.libraryName !== undefined ? (
+        <section>
+          <h3>{props.libraryName}</h3>
+          <p className="muted">{COPY.libraries}</p>
+          <ul>
+            {(props.libraryImporters ?? []).map((importer) => (
+              <li key={importer}>
+                <button type="button" onClick={() => props.onSelectNode?.(importer)}>
+                  {importer}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {props.node !== undefined ? (
         <section>
           <h3>{props.node.id}</h3>

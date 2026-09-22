@@ -1,5 +1,5 @@
 export const SCHEMA_VERSION = "1.0.0";
-export const ENGINE_VERSION = "0.9.1-perf";
+export const ENGINE_VERSION = "0.9.2-view";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [
@@ -67,6 +67,17 @@ export {
   type FileDegree,
   type InvestigationBrief,
 } from "./brief.js";
+export {
+  LIBRARY_NODE_PREFIX,
+  externalKind,
+  fileRole,
+  isViewLens,
+  libraryNodeId,
+  parseLibraryNodeId,
+  type ExternalKind,
+  type FileRole,
+  type ViewLens,
+} from "./view.js";
 export type {
   CompatibilityStatus,
   EdgeChange,
@@ -81,7 +92,9 @@ export type {
   Coverage,
   FileNode,
   ImportObservation,
+  ContextLanguage,
   LanguageId,
+  TsLanguageId,
   ParseStatus,
   ProjectContext,
   ReasonCode,

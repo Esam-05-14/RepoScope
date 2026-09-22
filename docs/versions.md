@@ -43,9 +43,10 @@ If spike S1 fails on Windows, the documented fallback is Vite 7 plus a Vite-7-co
 
 | Field | R0 value |
 | --- | --- |
-| Snapshot `schemaVersion` | `1.0.0` |
+| Snapshot `schemaVersion` writers emit | `1.0.0` until a snapshot contains a `py` or `java` node |
+| Schema document | `1.1.0` (`contracts/schemas/analysis-snapshot.schema.json`). Adds `py`, `java`, optional context `language`, and `WILDCARD_IMPORT`. |
 | Snapshot major compatibility | accept `1.x.x`; reject unknown majors |
-| `engineVersion` | `0.9.1-perf` |
+| `engineVersion` | `0.9.2-view` |
 | `parserVersion` | `typescript@6.0.3` |
 
 ## Sources checked

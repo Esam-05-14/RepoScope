@@ -1,7 +1,9 @@
 import {
   buildInvestigationBrief,
   formatInvestigationBrief,
+  type BriefDensity,
   type InvestigationBrief,
+  type ViewLens,
 } from "@reposcope/contracts";
 import type { AnalysisSnapshot } from "@reposcope/contracts";
 import { cycleGroupsFromSnapshot, relationsFromSnapshot } from "./analyze.js";
@@ -34,8 +36,9 @@ export function investigationBriefFromSnapshot(snapshot: AnalysisSnapshot): {
 
 export function investigationBriefMarkdown(
   snapshot: AnalysisSnapshot,
-  density: "compact" | "full" = "compact",
+  density: BriefDensity = "compact",
+  lens: ViewLens = "investigation",
 ): { brief: InvestigationBrief; markdown: string } {
   const { brief } = investigationBriefFromSnapshot(snapshot);
-  return { brief, markdown: formatInvestigationBrief(brief, { density }) };
+  return { brief, markdown: formatInvestigationBrief(brief, { density, lens }) };
 }

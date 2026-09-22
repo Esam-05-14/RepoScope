@@ -2,7 +2,7 @@ import type { EdgeClass, EdgePolicy } from "./status.js";
 
 export type SnapshotKind = "working-tree" | "imported-snapshot" | "git-commit";
 
-export type LanguageId =
+export type TsLanguageId =
   | "ts"
   | "tsx"
   | "js"
@@ -11,6 +11,10 @@ export type LanguageId =
   | "cts"
   | "mjs"
   | "cjs";
+
+export type LanguageId = TsLanguageId | "py" | "java";
+
+export type ContextLanguage = "typescript" | "python" | "java";
 
 export type ParseStatus = "ok" | "partial" | "failed" | "skipped";
 
@@ -50,7 +54,9 @@ export type ReasonCode =
   | "SYMLINK_SKIPPED"
   | "ASSET_UNSUPPORTED"
   | "PROTOCOL_UNSUPPORTED"
-  | "NODE_BUILTIN";
+  | "NODE_BUILTIN"
+  | "WORKSPACE_PACKAGE"
+  | "WILDCARD_IMPORT";
 
 export type SyntaxClass = "static-import" | "export-from" | "mixed";
 
@@ -109,6 +115,7 @@ export interface ProjectContext {
   configPath: string | null;
   digest?: string;
   pathMappings?: string[];
+  language?: ContextLanguage;
 }
 
 export interface ConstructCounts {

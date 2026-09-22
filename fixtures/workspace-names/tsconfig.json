@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noEmit": true
+  },
+  "files": ["packages/app/src/index.ts", "packages/lib/src/index.ts", "packages/lib/src/extra.ts"]
+}

@@ -49,7 +49,7 @@ A GitHub link is cloned into `~/.reposcope/clones` (or `REPOSCOPE_CACHE`) with h
 | --- | --- |
 | `npx reposcope inspect [path|github-url] [--demo] [--port 8787] [--reopen] [--commit rev]` | Loopback investigation UI. Default port 8787; `--reopen` attaches to a living session without printing the token. Does not hop ports. |
 | `npx reposcope scan [path|github-url] [--demo] [--out file] [--commit rev]` | Source-free snapshot JSON |
-| `npx reposcope brief [path|github-url] [--demo] [--out file] [--full] [--commit rev]` | Compact investigation brief; `--full` includes complete adjacency |
+| `npx reposcope brief [path|github-url] [--demo] [--out file] [--full] [--libraries] [--commit rev]` | Your-code investigation brief; `--full` is complete adjacency; `--libraries` is the specifier catalog |
 | `npx reposcope compare a.json b.json` | Structural snapshot diff |
 | `npm run demo` | Inspect bundled `fixtures/esm-baseline` |
 | `npm run verify` | typecheck, lint, build, unit/integration, Playwright |
@@ -60,7 +60,8 @@ A GitHub link is cloned into `~/.reposcope/clones` (or `REPOSCOPE_CACHE`) with h
 - Extracts static ESM imports, re-exports, and string `require()` with `typescript@6.0.3` compiler-API resolution.
 - Builds a file-level graph of observed dependencies. Arrow `A → B` means A imports B. Declared binding names are optional metadata, not usage proof. Directory and workspace-package prefixes roll up into a component view of the same observed edges.
 - Shows reverse impact, cycle groups, coverage omissions, hubs, and hash-checked evidence.
-- Emits a compact investigation brief (Overview **Copy brief**, `/brief`, or `reposcope brief`) so a separately chosen assistant can start from observed edges instead of rereading the tree. RepoScope does not call a model.
+- Emits a compact investigation brief (Overview **Copy brief**, `/brief`, or `reposcope brief`) so a separately chosen assistant can start from observed edges instead of rereading the tree. Your-code and Libraries are separate lenses. RepoScope does not call a model.
+- Resolves workspace `package.json` names to inventoried source via JSON `exports` / entry fields. It does not install that project's packages.
 - Compares two source-free snapshots. Incremental rescans reuse unchanged files by content hash.
 - Optional Git commit scans via `git ls-tree` / `git cat-file` (no checkout). JSON boundary policy evaluation.
 - Persists source-free snapshots under `~/.reposcope/store` (or `REPOSCOPE_CACHE`), capped at 20 per repository identity. GitHub clones are pruned to the eight most recent. Open a snapshot file in the local editor without sending a filesystem path from the browser.

@@ -6,7 +6,9 @@ import { GraphView } from "../components/graph-view.js";
 import { Inspector } from "../components/inspector.js";
 import { RelationList } from "../components/relation-list.js";
 import { fetchEvidence, fetchImpact, openInEditor } from "../lib/api.js";
+import { parseLibraryNodeId } from "@reposcope/contracts";
 import { briefFromSnapshot } from "../lib/brief.js";
+import { useViewLens } from "../lib/lens.js";
 import { fileRelationsFromSnapshot, relationsFromSnapshot } from "../lib/relations.js";
 import { COPY } from "../lib/copy.js";
 import { useWorkspace } from "../workspace.js";
@@ -25,6 +27,7 @@ export function ExplorePage(): ReactElement {
   }>();
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [listMode, setListMode] = useState(false);
+  const [lens, setLens] = useViewLens();
   const searchRef = useRef<HTMLInputElement>(null);
   const restoreFocus = useRef<HTMLElement | null>(null);
 
@@ -54,6 +57,14 @@ export function ExplorePage(): ReactElement {
       return;
     }
     restoreFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (parseLibraryNodeId(node) !== undefined) {
+      setSelected(node);
+      setInspectorOpen(true);
+      setEdge(undefined);
+      setEvidence(undefined);
+      setImpact(undefined);
+      return;
+    }
     setSelected(node);
     setInspectorOpen(true);
     const local = impactFromSnapshot(snapshot, node);
@@ -125,8 +136,12 @@ export function ExplorePage(): ReactElement {
 
   const cycles = cycleGroupsFromSnapshot(snapshot);
   const relations = relationsFromSnapshot(snapshot);
+  const libraryName = selected === undefined ? undefined : parseLibraryNodeId(selected);
+  const library = packed.brief.externals.find((item) => item.name === libraryName);
   const fileRelations =
-    selected === undefined ? undefined : fileRelationsFromSnapshot(snapshot, selected);
+    selected === undefined || libraryName !== undefined
+      ? undefined
+      : fileRelationsFromSnapshot(snapshot, selected);
   const selectedFacts = packed.brief.files.find((file) => file.id === selected);
   const selectedNode = snapshot.nodes.find((node) => node.id === selected);
   const selectedContext = snapshot.projectContexts?.find(
@@ -136,7 +151,7 @@ export function ExplorePage(): ReactElement {
   const incoming = snapshot.semanticEdges.filter((item) => item.targetId === selected);
 
   return (
-    <div className={`explorer ${inspectorOpen ? "inspector-open" : ""}`}>
+    <div className={`explorer${inspectorOpen ? " inspector-open" : ""}${listMode ? " list-mode" : ""}`}>
       <aside className="tree-pane">
         <FileTree
           paths={snapshot.nodes.map((node) => node.id)}
@@ -162,6 +177,22 @@ export function ExplorePage(): ReactElement {
               placeholder="Filter paths"
             />
           </label>
+          <button
+            type="button"
+            data-testid="lens-investigation"
+            aria-pressed={lens === "investigation"}
+            onClick={() => setLens("investigation")}
+          >
+            Your code
+          </button>
+          <button
+            type="button"
+            data-testid="lens-libraries"
+            aria-pressed={lens === "libraries"}
+            onClick={() => setLens("libraries")}
+          >
+            Libraries
+          </button>
           <button type="button" aria-pressed={!listMode} onClick={() => setListMode(false)}>
             Graph
           </button>
@@ -185,6 +216,7 @@ export function ExplorePage(): ReactElement {
           <GraphView
             snapshot={snapshot}
             selected={selected}
+            lens={lens}
             onSelectNode={(id) => {
               void loadFor(id);
             }}
@@ -194,6 +226,9 @@ export function ExplorePage(): ReactElement {
             }}
           />
         )}
+        <p className="muted explore-lens-copy">
+          {lens === "libraries" ? COPY.libraries : COPY.yourCode}
+        </p>
         <section className="cycles" data-testid="component-relations">
           <h2>Component relations</h2>
           <p className="muted">{COPY.component}</p>
@@ -253,11 +288,15 @@ export function ExplorePage(): ReactElement {
         coImported={fileRelations?.coImported}
         evidence={evidence}
         impact={impact}
+        libraryName={library?.name}
+        libraryImporters={library?.importers}
         onSelectNode={(id) => {
           void loadFor(id);
         }}
         onOpenEditor={
-          selected === undefined || workspace.snapshotId === undefined
+          selected === undefined ||
+          libraryName !== undefined ||
+          workspace.snapshotId === undefined
             ? undefined
             : async () => {
                 const snapshotId = workspace.snapshotId;

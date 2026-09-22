@@ -14,6 +14,7 @@ import {
   type Resolution,
   type SemanticEdge,
   type SnapshotKind,
+  type WorkspacePackage,
 } from "@reposcope/contracts";
 import {
   extractConstructs,
@@ -40,6 +41,10 @@ import {
   isProtocolSpecifier,
 } from "./assets.js";
 import { repositoryIdentityForRoot } from "./persist.js";
+import {
+  resolveWorkspaceSpecifier,
+  type PackageManifest,
+} from "./workspace-resolve.js";
 
 export interface ScanProgress {
   phase: "inventory" | "parse" | "graph";
@@ -119,6 +124,8 @@ function classifyResolution(input: {
   host: AnalysisFilesystemHost;
   inventoryIds: ReadonlySet<string>;
   contextId: string;
+  workspacePackages: readonly WorkspacePackage[];
+  workspaceCache: Map<string, PackageManifest | null>;
 }): Resolution {
   const cheap = cheapResolution(input.specifier, input.contextId);
   if (cheap !== undefined) {
@@ -131,17 +138,7 @@ function classifyResolution(input: {
       reasonCode: "UNSUPPORTED_SYNTAX",
     };
   }
-  if (input.resolved !== undefined) {
-    if (!isInsideRoot(input.host.root, input.resolved)) {
-      return {
-        status: isRelativeSpecifier(input.specifier) ? "unresolved" : "external",
-        contextId: input.contextId,
-        reasonCode: isRelativeSpecifier(input.specifier)
-          ? "OUTSIDE_ROOT"
-          : "EXTERNAL_PACKAGE",
-        externalName: isRelativeSpecifier(input.specifier) ? undefined : input.specifier,
-      };
-    }
+  if (input.resolved !== undefined && isInsideRoot(input.host.root, input.resolved)) {
     const relative = toPosixRelative(input.host.root, input.resolved);
     if (input.inventoryIds.has(relative)) {
       return {
@@ -156,6 +153,31 @@ function classifyResolution(input: {
         status: "declaration-only",
         contextId: input.contextId,
         reasonCode: "DECLARATION_ONLY",
+      };
+    }
+  }
+  if (!isRelativeSpecifier(input.specifier)) {
+    const workspace = resolveWorkspaceSpecifier({
+      specifier: input.specifier,
+      packages: input.workspacePackages,
+      inventoryIds: input.inventoryIds,
+      host: input.host,
+      contextId: input.contextId,
+      cache: input.workspaceCache,
+    });
+    if (workspace !== undefined) {
+      return workspace;
+    }
+  }
+  if (input.resolved !== undefined) {
+    if (!isInsideRoot(input.host.root, input.resolved)) {
+      return {
+        status: isRelativeSpecifier(input.specifier) ? "unresolved" : "external",
+        contextId: input.contextId,
+        reasonCode: isRelativeSpecifier(input.specifier)
+          ? "OUTSIDE_ROOT"
+          : "EXTERNAL_PACKAGE",
+        externalName: isRelativeSpecifier(input.specifier) ? undefined : input.specifier,
       };
     }
     return {
@@ -250,6 +272,8 @@ function resolveObservation(input: {
   contextId: string;
   cache: Map<string, Resolution>;
   stats: { hits: number };
+  workspacePackages: readonly WorkspacePackage[];
+  workspaceCache: Map<string, PackageManifest | null>;
 }): Resolution {
   const cheap = cheapResolution(input.specifier, input.contextId);
   if (cheap !== undefined) {
@@ -277,6 +301,8 @@ function resolveObservation(input: {
     host: input.host,
     inventoryIds: input.inventoryIds,
     contextId: input.contextId,
+    workspacePackages: input.workspacePackages,
+    workspaceCache: input.workspaceCache,
   });
   if (input.cache.size < RESOLVE_CACHE_CAP) {
     input.cache.set(cacheKey, resolution);
@@ -340,6 +366,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
   const includeDynamicImport = options.includeDynamicImport === true;
   const resolveCache = new Map<string, Resolution>();
   const resolveStats = { hits: 0 };
+  const workspaceCache = new Map<string, PackageManifest | null>();
   let reusedResolutions = 0;
   const scanTruncations: string[] = [];
   const previous = options.previousSnapshot;
@@ -418,6 +445,8 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
             contextId: context.record.id,
             cache: resolveCache,
             stats: resolveStats,
+            workspacePackages: inventory.workspacePackages,
+            workspaceCache,
           });
         if (reusedResolution !== undefined) {
           reusedResolutions += 1;
@@ -477,6 +506,8 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
         contextId: context.record.id,
         cache: resolveCache,
         stats: resolveStats,
+        workspacePackages: inventory.workspacePackages,
+        workspaceCache,
       });
       observations.push({
         id: `obs:${file.relativePath}:${construct.range.startOffset}`,

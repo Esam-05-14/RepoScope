@@ -28,6 +28,7 @@ async function main(argv: string[]): Promise<void> {
       "no-open": { type: "boolean", default: false },
       reopen: { type: "boolean", default: false },
       full: { type: "boolean", default: false },
+      libraries: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
       version: { type: "boolean", default: false, short: "v" },
     },
@@ -40,7 +41,7 @@ async function main(argv: string[]): Promise<void> {
 
   if (values.help === true || positionals[0] === undefined) {
     process.stdout.write(
-      "Usage:\n  reposcope inspect [path|github-url] [--demo] [--port 8787] [--reopen] [--no-open] [--commit rev]\n  reposcope scan [path|github-url] [--demo] [--out file] [--commit rev]\n  reposcope brief [path|github-url] [--demo] [--out file] [--full] [--commit rev]\n  reposcope compare <base.json> <target.json>\n  reposcope --version\n",
+      "Usage:\n  reposcope inspect [path|github-url] [--demo] [--port 8787] [--reopen] [--no-open] [--commit rev]\n  reposcope scan [path|github-url] [--demo] [--out file] [--commit rev]\n  reposcope brief [path|github-url] [--demo] [--out file] [--full] [--libraries] [--commit rev]\n  reposcope compare <base.json> <target.json>\n  reposcope --version\n",
     );
     return;
   }
@@ -62,6 +63,7 @@ async function main(argv: string[]): Promise<void> {
       out: values.out,
       commit: values.commit,
       density: values.full === true ? "full" : "compact",
+      lens: values.libraries === true ? "libraries" : "investigation",
     });
     return;
   }

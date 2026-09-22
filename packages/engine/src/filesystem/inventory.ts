@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { LanguageId, ParseStatus, WorkspacePackage } from "@reposcope/contracts";
+import type { ParseStatus, TsLanguageId, WorkspacePackage } from "@reposcope/contracts";
 import { languageFromPath, SOURCE_EXTENSIONS } from "@reposcope/parser-ts";
 import type { AnalysisFilesystemHost } from "./host.js";
 import { toPosixRelative } from "./paths.js";
@@ -41,7 +41,7 @@ export interface InventoryFile {
   absolutePath: string;
   relativePath: string;
   contentHash: string;
-  language: LanguageId;
+  language: TsLanguageId;
   text?: string;
   parseStatus: ParseStatus;
   skipReason?: string;

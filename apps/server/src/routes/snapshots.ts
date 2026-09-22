@@ -45,9 +45,10 @@ export function registerSnapshotRoutes(
       sendError(reply, 404, "SCAN_NOT_FOUND", "Snapshot not found.");
       return reply;
     }
-    const density =
-      (request.query as { density?: string }).density === "full" ? "full" : "compact";
-    const { brief, markdown } = investigationBriefMarkdown(stored.snapshot, density);
+    const query = request.query as { density?: string; lens?: string };
+    const density = query.density === "full" ? "full" : "compact";
+    const lens = query.lens === "libraries" ? "libraries" : "investigation";
+    const { brief, markdown } = investigationBriefMarkdown(stored.snapshot, density, lens);
     const format = (request.query as { format?: string }).format;
     if (format === "md" || format === "markdown") {
       void reply.header("content-type", "text/markdown; charset=utf-8");

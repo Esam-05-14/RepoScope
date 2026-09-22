@@ -1,6 +1,7 @@
 import { MarkerType, type Edge, type Node } from "@xyflow/react";
-import type { SemanticEdge } from "@reposcope/contracts";
+import { fileRole, type SemanticEdge } from "@reposcope/contracts";
 import type { ComponentEdge, ComponentNode } from "@reposcope/graph";
+import type { LibraryDisplayNode } from "./view-filter.js";
 
 const BANDS = ["#fffdf8", "#f3f7fb", "#f7f3ea", "#eef6f1", "#f6eef4"];
 
@@ -19,7 +20,17 @@ function edgeStroke(edgeClass: string): { stroke: string; strokeDasharray?: stri
   if (edgeClass === "mixed") {
     return { stroke: "#5c574e" };
   }
+  if (edgeClass === "library") {
+    return { stroke: "#7a6a4f", strokeDasharray: "2 4" };
+  }
   return { stroke: "#1d4f73" };
+}
+
+function fileTitle(id: string): { title: string; subtitle: string } {
+  const parts = id.split("/").filter((part) => part.length > 0);
+  const title = parts[parts.length - 1] ?? id;
+  const subtitle = parts.slice(0, -1).join("/") || ".";
+  return { title, subtitle };
 }
 
 export function layoutFiles(input: {
@@ -82,18 +93,23 @@ export function layoutFiles(input: {
     const inCycle = input.cycles.has(id);
     const near = input.neighborhood.has(id);
     const selected = id === input.selected;
+    const names = fileTitle(id);
     nodes.push({
       id,
-      position: { x: col * 250, y: band * 220 + row * 76 },
+      type: "file",
+      position: { x: col * 236, y: band * 200 + row * 92 },
       data: {
-        label: `${id.split("/").pop() ?? id}\n${component}\nin ${incoming.get(id) ?? 0} · out ${outgoing.get(id) ?? 0}`,
+        path: id,
+        title: names.title,
+        subtitle: names.subtitle,
+        inbound: incoming.get(id) ?? 0,
+        outbound: outgoing.get(id) ?? 0,
+        role: fileRole(id),
+        inCycle,
       },
       style: {
-        fontSize: 11,
-        width: 220,
-        border: selected ? "2px solid #1d4f73" : inCycle ? "1px solid #a94442" : "1px solid #c9c2b4",
         background: selected ? "#e7f0f6" : inCycle ? "#f8e6e6" : colorForComponent(component),
-        opacity: input.selected !== undefined && !near && !selected ? 0.45 : 1,
+        opacity: input.selected !== undefined && !near && !selected ? 0.42 : 1,
       },
     });
   }
@@ -109,11 +125,46 @@ export function layoutFiles(input: {
         source: edge.importerId,
         target: edge.targetId,
         markerEnd: { type: MarkerType.ArrowClosed, color: paint.stroke },
-        style: { stroke: paint.stroke, strokeDasharray: paint.strokeDasharray, strokeWidth: 1.4 },
+        style: { stroke: paint.stroke, strokeDasharray: paint.strokeDasharray, strokeWidth: 1.35 },
         data: { key: edge.key },
       },
     ];
   });
+  return { nodes, flowEdges };
+}
+
+export function layoutLibraries(input: {
+  libraries: readonly LibraryDisplayNode[];
+  visibleFiles: ReadonlySet<string>;
+  column: number;
+}): { nodes: Node[]; flowEdges: Edge[] } {
+  const nodes: Node[] = input.libraries.slice(0, 40).map((library, index) => ({
+    id: library.id,
+    type: "library",
+    position: { x: input.column * 236, y: index * 92 },
+    data: {
+      name: library.name,
+      kind: library.kind,
+      importers: library.importers.length,
+    },
+  }));
+  const flowEdges: Edge[] = [];
+  const paint = edgeStroke("library");
+  for (const library of input.libraries.slice(0, 40)) {
+    for (const importer of library.importers) {
+      if (!input.visibleFiles.has(importer)) {
+        continue;
+      }
+      flowEdges.push({
+        id: `libedge:${importer}>${library.id}`,
+        source: importer,
+        target: library.id,
+        markerEnd: { type: MarkerType.ArrowClosed, color: paint.stroke },
+        style: { stroke: paint.stroke, strokeDasharray: paint.strokeDasharray, strokeWidth: 1.1 },
+        data: { library: library.name },
+      });
+    }
+  }
   return { nodes, flowEdges };
 }
 
@@ -159,18 +210,13 @@ export function layoutComponents(input: {
       if (component === undefined) {
         return;
       }
-      const selected = id === input.selectedComponent;
       nodes.push({
         id,
-        position: { x: col * 280, y: index * 110 },
+        type: "component",
+        position: { x: col * 270, y: index * 110 },
         data: {
-          label: `${component.id}\n${component.files} files · in ${component.importedBy} · out ${component.imports}`,
-        },
-        style: {
-          fontSize: 12,
-          width: 250,
-          border: selected ? "2px solid #1d4f73" : "1px solid #c9c2b4",
-          background: selected ? "#e7f0f6" : colorForComponent(id),
+          title: component.id,
+          subtitle: `${component.files} files · in ${component.importedBy} · out ${component.imports}`,
         },
       });
     });

@@ -1,7 +1,7 @@
 import ts from "typescript";
-import type { LanguageId } from "@reposcope/contracts";
+import type { TsLanguageId } from "@reposcope/contracts";
 
-const EXTENSIONS: Record<string, LanguageId> = {
+const EXTENSIONS: Record<string, TsLanguageId> = {
   ".ts": "ts",
   ".tsx": "tsx",
   ".js": "js",
@@ -12,12 +12,12 @@ const EXTENSIONS: Record<string, LanguageId> = {
   ".cjs": "cjs",
 };
 
-export function languageFromPath(fileName: string): LanguageId | undefined {
+export function languageFromPath(fileName: string): TsLanguageId | undefined {
   const ext = fileName.slice(fileName.lastIndexOf(".")).toLowerCase();
   return EXTENSIONS[ext];
 }
 
-export function scriptKindFor(language: LanguageId): ts.ScriptKind {
+export function scriptKindFor(language: TsLanguageId): ts.ScriptKind {
   switch (language) {
     case "tsx":
       return ts.ScriptKind.TSX;
@@ -27,7 +27,9 @@ export function scriptKindFor(language: LanguageId): ts.ScriptKind {
     case "mjs":
     case "cjs":
       return ts.ScriptKind.JS;
-    default:
+    case "ts":
+    case "mts":
+    case "cts":
       return ts.ScriptKind.TS;
   }
 }

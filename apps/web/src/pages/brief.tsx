@@ -2,15 +2,17 @@ import { useMemo, useState, type ReactElement } from "react";
 import type { BriefDensity } from "@reposcope/contracts";
 import { COPY } from "../lib/copy.js";
 import { briefFromSnapshot, copyText, downloadText } from "../lib/brief.js";
+import { useViewLens } from "../lib/lens.js";
 import { useWorkspace } from "../workspace.js";
 
 export function BriefPage(): ReactElement {
   const { snapshot, snapshotId } = useWorkspace();
   const [copied, setCopied] = useState(false);
   const [density, setDensity] = useState<BriefDensity>("compact");
+  const [lens, setLens] = useViewLens();
   const packed = useMemo(
-    () => (snapshot === undefined ? undefined : briefFromSnapshot(snapshot, density)),
-    [snapshot, density],
+    () => (snapshot === undefined ? undefined : briefFromSnapshot(snapshot, density, lens)),
+    [snapshot, density, lens],
   );
 
   if (snapshot === undefined || packed === undefined) {
@@ -29,11 +31,30 @@ export function BriefPage(): ReactElement {
       <h1>Investigation brief</h1>
       <p>{COPY.brief}</p>
       <p className="muted">{COPY.briefPrivacy}</p>
+      <p className="muted">{lens === "libraries" ? COPY.libraries : COPY.yourCode}</p>
       <p className="muted">
         About {packed.markdown.length} characters · {packed.brief.scope.files} files ·{" "}
-        {packed.brief.scope.internalEdges} observed edges · {density}
+        {packed.brief.scope.internalEdges} observed edges · {density} · {lens}
       </p>
       <div className="actions">
+        <button
+          type="button"
+          aria-pressed={lens === "investigation"}
+          onClick={() => {
+            setLens("investigation");
+          }}
+        >
+          Your code
+        </button>
+        <button
+          type="button"
+          aria-pressed={lens === "libraries"}
+          onClick={() => {
+            setLens("libraries");
+          }}
+        >
+          Libraries
+        </button>
         <button
           type="button"
           aria-pressed={density === "compact"}

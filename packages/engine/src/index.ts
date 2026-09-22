@@ -29,6 +29,12 @@ export {
   relationsFromSnapshot,
 } from "./analyze.js";
 export { investigationBriefFromSnapshot, investigationBriefMarkdown } from "./brief.js";
+export {
+  matchWorkspacePackage,
+  parsePackageManifest,
+  exportTargets,
+  resolveWorkspaceSpecifier,
+} from "./workspace-resolve.js";
 export { graphDigestOf, contentManifestDigestOf } from "./digest.js";
 export { ConfinedFilesystemHost } from "./filesystem/confined-fs.js";
 export { inventoryRepository, DEFAULT_LIMITS } from "./filesystem/inventory.js";
