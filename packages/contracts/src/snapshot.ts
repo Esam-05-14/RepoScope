@@ -12,7 +12,13 @@ export type TsLanguageId =
   | "mjs"
   | "cjs";
 
-export type LanguageId = TsLanguageId | "py" | "java";
+export type LanguageId = TsLanguageId | "py" | "java" | "kt";
+
+const TS_LANGUAGE_IDS = new Set<string>(["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs"]);
+
+export function isTsLanguageId(language: LanguageId): language is TsLanguageId {
+  return TS_LANGUAGE_IDS.has(language);
+}
 
 export type ContextLanguage = "typescript" | "python" | "java";
 

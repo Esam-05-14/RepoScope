@@ -1,0 +1,9 @@
+<project>
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>parent</artifactId>
+    <version>1</version>
+    <relativePath>../../outside-trap/pom.xml</relativePath>
+  </parent>
+  <artifactId>app</artifactId>
+</project>

@@ -1,8 +1,10 @@
 import {
   externalKind,
   fileRole,
+  languageFamily,
   libraryNodeId,
   type AnalysisSnapshot,
+  type SourceFamily,
   type ViewLens,
 } from "@reposcope/contracts";
 import { includedByPolicy } from "@reposcope/graph";
@@ -11,6 +13,7 @@ export interface ViewFilterOptions {
   lens: ViewLens;
   includeTests: boolean;
   hideIsolated: boolean;
+  language?: SourceFamily | "all";
 }
 
 export interface LibraryDisplayNode {
@@ -25,6 +28,10 @@ export function visibleFileIds(
   options: ViewFilterOptions,
 ): string[] {
   let ids = snapshot.nodes.map((node) => node.id);
+  if (options.language !== undefined && options.language !== "all") {
+    const languages = new Map(snapshot.nodes.map((node) => [node.id, node.language]));
+    ids = ids.filter((id) => languageFamily(languages.get(id) ?? "ts") === options.language);
+  }
   if (options.lens === "investigation") {
     ids = ids.filter((id) => {
       const role = fileRole(id);

@@ -1,0 +1,4 @@
+include("app", "lib")
+include(":nested:core")
+include(projectName)
+// include("not-a-module")

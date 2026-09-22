@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { PRODUCT_VERSION } from "@reposcope/contracts";
 import { inspectCommand } from "./commands/inspect.js";
 import { compareCommand } from "./commands/compare.js";
 import { briefCommand } from "./commands/brief.js";
@@ -35,7 +36,7 @@ async function main(argv: string[]): Promise<void> {
   });
 
   if (values.version === true) {
-    process.stdout.write("reposcope 0.1.0\n");
+    process.stdout.write(`reposcope ${PRODUCT_VERSION}\n`);
     return;
   }
 

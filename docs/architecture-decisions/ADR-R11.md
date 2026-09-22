@@ -25,3 +25,5 @@ Gradle and Kotlin are not in the first Java wave. Groovy or Kotlin DSL evaluatio
 ## Impact
 
 Security: XML parsing disables external entities and keeps the manifest byte cap. No `mvn`, `gradle`, or `javac`. Compatibility: `.java` files stay out of inventory until the Java wave. Tests are the Maven reactor acceptance list in `docs/language-extension-plan.md`. The release promise does not name Java until that wave's browser gate passes.
+
+ADR-R13 accepts the later Gradle `include("...")` scan and the Kotlin import extractor. This ADR's ban on running Gradle still holds. The Java resolver matches `.java` only.

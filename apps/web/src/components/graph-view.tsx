@@ -11,6 +11,7 @@ import {
   parseLibraryNodeId,
   type AnalysisSnapshot,
   type SemanticEdge,
+  type SourceFamily,
   type ViewLens,
 } from "@reposcope/contracts";
 import { boundGraph, boundNeighborhood, GRAPH_EDGE_CAP, GRAPH_NODE_CAP } from "../lib/bound-graph.js";
@@ -19,6 +20,7 @@ import { cycleGroupsFromSnapshot } from "../lib/analyze.js";
 import { libraryDisplayNodes, restrictSnapshot, visibleFileIds } from "../lib/view-filter.js";
 import { relationsFromSnapshot } from "../lib/relations.js";
 import { COPY } from "../lib/copy.js";
+import { graphWindowCopy } from "../lib/truncation-label.js";
 import { neighborhoodOf } from "@reposcope/graph";
 import { ComponentGraphNode, FileGraphNode, LibraryGraphNode } from "./graph-nodes.js";
 
@@ -44,6 +46,7 @@ function GraphInner(props: {
   const [hops, setHops] = useState(2);
   const [nodeCap, setNodeCap] = useState(GRAPH_NODE_CAP);
   const [edgeCap, setEdgeCap] = useState(GRAPH_EDGE_CAP);
+  const [language, setLanguage] = useState<SourceFamily | "all">("all");
 
   useEffect(() => {
     setHideIsolated(props.lens === "investigation");
@@ -55,8 +58,9 @@ function GraphInner(props: {
         lens: props.lens,
         includeTests,
         hideIsolated: props.lens === "investigation" ? hideIsolated : false,
+        language,
       }),
-    [props.snapshot, props.lens, includeTests, hideIsolated],
+    [props.snapshot, props.lens, includeTests, hideIsolated, language],
   );
   const scoped = useMemo(() => restrictSnapshot(props.snapshot, fileIds), [props.snapshot, fileIds]);
   const visibleSet = useMemo(() => new Set(fileIds), [fileIds]);
@@ -162,7 +166,7 @@ function GraphInner(props: {
       void flow.fitView({ padding: 0.18, duration: 180 });
     }, 40);
     return () => window.clearTimeout(timer);
-  }, [flow, mode, props.lens, hops, includeTests, hideIsolated]);
+  }, [flow, mode, props.lens, hops, includeTests, hideIsolated, language]);
 
   return (
     <div className="graph-pane" data-testid="graph-pane">
@@ -224,6 +228,31 @@ function GraphInner(props: {
           />
           Tests
         </label>
+        <label className="graph-hop">
+          Language
+          <select
+            data-testid="graph-language"
+            value={language}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (
+                next === "all" ||
+                next === "typescript" ||
+                next === "python" ||
+                next === "java" ||
+                next === "kotlin"
+              ) {
+                setLanguage(next);
+              }
+            }}
+          >
+            <option value="all">All</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="kotlin">Kotlin</option>
+          </select>
+        </label>
       </div>
       <p className="graph-legend muted">
         {props.lens === "libraries"
@@ -231,8 +260,8 @@ function GraphInner(props: {
           : "Solid value · dashed type-only · red outline is an observed cycle member."}
       </p>
       {bounded.truncated && mode !== "components" ? (
-        <p role="status">
-          Graph truncated to {nodeCap} files and {edgeCap} relations around the selection.
+        <p role="status" data-testid="graph-truncated">
+          {graphWindowCopy(bounded.nodeIds.length, scoped.nodes.length, bounded.edges.length, nodeCap, edgeCap)}
           <button
             type="button"
             data-testid="graph-expand"
@@ -244,6 +273,14 @@ function GraphInner(props: {
             Show more files
           </button>
         </p>
+      ) : null}
+      {props.snapshot.scope.truncated === true ? (
+        <p role="status" data-testid="scan-partial">
+          This scan is partial. Coverage lists what was left out.
+        </p>
+      ) : null}
+      {language !== "all" && fileIds.length === 0 ? (
+        <p>No {language} files in this view.</p>
       ) : null}
       {mode === "neighborhood" &&
       (props.selected === undefined || parseLibraryNodeId(props.selected) !== undefined) ? (

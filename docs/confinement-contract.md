@@ -6,6 +6,7 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 
 - Regular files inside the canonical root after `realpath`-style resolution.
 - `tsconfig.json` / `jsconfig.json` inside that root, parsed through the TypeScript config API on the confined host.
+- `pyproject.toml`, `setup.cfg`, `pom.xml`, `settings.gradle`, and `settings.gradle.kts` inside that root, read as data with a 256 KiB cap. XML rejects `DOCTYPE` and `ENTITY`. TOML and INI reads are limited to declared layout keys. Gradle reads are limited to `include("...")` string literals.
 - Git object reads (P1 only) from the selected commit via `execFile` argument arrays, never shell strings.
 - Optional `https://github.com/{owner}/{repo}` locators. The clone URL is reconstructed; the destination is application-owned cache (`~/.reposcope/clones` or `REPOSCOPE_CACHE`), not a browser-supplied filesystem path.
 
@@ -18,6 +19,8 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 - `.git` working files as source inventory (the object store is a P1 adapter, not a source walk).
 - `node_modules`, common output dirs (`dist`, `build`, `coverage`, `.next`, `out`), binary files, and known credential filenames (`.env`, `*.pem`, `id_rsa`, `credentials.json`, and the list maintained at R2).
 - Inspected project JavaScript config as executable code. No `import()` of repo config. No `npm install` in the inspected tree. `package.json` is read as JSON only; `exports` / `main` / `types` strings may map a workspace package name onto inventoried source. They are not executed.
+- Starting the inspected project's `python`, `pip`, `poetry`, `uv`, `mvn`, `gradle`, or `javac`. `setup.py` is not executed. Maven caches and Gradle caches outside the root are not read.
+- `__pycache__`, `.venv`, `venv`, `.tox`, `.mypy_cache`, `.pytest_cache`, `target`, and `.gradle` during the source walk.
 
 ## Limits (design, to validate)
 

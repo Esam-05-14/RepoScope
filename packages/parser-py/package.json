@@ -1,0 +1,16 @@
+{
+  "name": "@reposcope/parser-py",
+  "version": "0.1.0-r1",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -b"
+  }
+}

@@ -1,8 +1,11 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 — 2026-09-22
 
-- L0 language contract: schema document `1.1.0` accepts `py` and `java` nodes, an optional context language, and `WILDCARD_IMPORT`. Writers still emit `1.0.0`. No Python or Java parser. See ADR-R08 through ADR-R11.
+- A partial scan and a capped graph say what was left out. Coverage spells out each limit. The file graph states how many files are on screen.
+- Engine hardening: a declared Python or Maven root that leaves the selected directory is not replaced with a guessed layout. Gradle `include` paths that contain `..` are ignored. Star imports stay omissions and do not become unresolved edges. Observation ids stay unique within the schema limit. A leading UTF-8 BOM does not hide the first import.
+- Languages (`0.10.0-lang`): Python, Java, and Kotlin imports resolve inside the selected root. `pyproject.toml` and `setup.cfg` are data. Maven `pom.xml` is XML with entity expansion rejected. `settings.gradle` and `settings.gradle.kts` contribute `include("...")` directories only. No project Python, Maven, or Gradle process. TypeScript-only snapshots stay schema `1.0.0`. A snapshot with a `py`, `java`, or `kt` node is schema `1.1.0`. The graph can filter by language. See ADR-R12 and ADR-R13.
+- L0 language contract: schema document `1.1.0` accepts `py` and `java` nodes, an optional context language, and `WILDCARD_IMPORT`. Writers still emit `1.0.0` until a non-TypeScript node exists. See ADR-R08 through ADR-R11.
 - Accept `https://github.com/owner/repo` (CLI and Overview). Clone into a local cache, then run the existing read-only scan and graph.
 - P1: scan progress, graph expand, Git commit field, boundary-policy UI, source-free snapshot persistence under the application cache.
 - P2: incremental reuse by content hash, tsconfig `files` / project-reference context selection, declared binding names, confined open-in-editor, CommonJS `require("…")` as supported edges.

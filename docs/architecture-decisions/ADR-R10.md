@@ -30,3 +30,5 @@ The parser pin is a grammar that does not start Python. If that spike fails on W
 ## Impact
 
 Security: no pip, Poetry, conda, or project Python. Manifests are size-capped data. Compatibility: Python files stay out of inventory until the Python wave. Tests for that wave are the acceptance list in `docs/language-extension-plan.md`. The release promise does not name Python until that wave's browser gate passes.
+
+ADR-R12 records the parser pin that landed: a bounded import scanner, `py-import@1`, with no Python process.

@@ -32,4 +32,8 @@ A later agent may propose a deviation. It must not replace this stack to make a 
 
 ## L0 (22 September 2026)
 
-ADR-R08 through ADR-R11 accept first-party Python and Java adapters, one UTF-16 evidence coordinate system, interpreter-free Python resolution, and declarative Maven. The schema document is `1.1.0`. `engineVersion` and the writer `schemaVersion` stay `0.9.2-view` and `1.0.0`. TypeScript parser pin is unchanged.
+ADR-R08 through ADR-R11 accept first-party Python and Java adapters, one UTF-16 evidence coordinate system, interpreter-free Python resolution, and declarative Maven. The schema document is `1.1.0`. TypeScript parser pin is unchanged.
+
+## L1–L7 (22 September 2026)
+
+`engineVersion` is `0.10.0-lang`. TypeScript-only snapshots still write schema `1.0.0` and `parserVersion` `typescript@6.0.3`. Snapshots that contain a `py`, `java`, or `kt` node write schema `1.1.0`. ADR-R12 pins bounded import scanners instead of starting an interpreter. ADR-R13 accepts a restricted Gradle `include` scan and a Kotlin import extractor. Gradle, Maven, and project Python are not executed.

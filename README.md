@@ -1,6 +1,8 @@
 # RepoScope
 
-Local, read-only TypeScript and JavaScript architecture explorer. It turns supported source-level imports into an evidence-linked dependency graph so you can ask: **what depends on this file, and what evidence should I inspect before changing it?**
+RepoScope reports observed source-level dependencies in TypeScript, JavaScript, Python, Java, and Kotlin. A Python, Java, or Kotlin edge is a declared import resolved under the selected project configuration. It is not a runtime import and not a symbol-level use.
+
+It turns those imports into an evidence-linked dependency graph so you can ask: **what depends on this file, and what evidence should I inspect before changing it?**
 
 It reports **observed dependencies** and a **potential investigation scope**. It does not claim that a change will break N files, prove dead code, or predict runtime failures.
 
@@ -80,7 +82,7 @@ Bind is `127.0.0.1` only. Host and Origin are validated. Default exports omit so
 
 ## Package
 
-The workspace is the supported distribution. `license` is MIT, `bin` is `reposcope`, and published packages expose `dist` only. Do not `npm publish` unless you are cutting a release. `REPOSCOPE_PERSIST=0` disables the application snapshot cache.
+Version **0.10.0**. The workspace is the supported distribution. `license` is MIT, `bin` is `reposcope`, and published packages expose `dist` only. Do not `npm publish` unless you are cutting a release. `REPOSCOPE_PERSIST=0` disables the application snapshot cache.
 
 Install the optional VS Code command from `extensions/vscode` if you want `RepoScope: Reveal File` in the editor. The loopback API still confines the path before launching `code` or `REPOSCOPE_EDITOR`.
 

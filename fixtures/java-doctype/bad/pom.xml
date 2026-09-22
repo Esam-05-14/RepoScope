@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<!DOCTYPE project [
+  <!ENTITY x "EXPANDED_ENTITY">
+]>
+<project>
+  <artifactId>&x;</artifactId>
+</project>

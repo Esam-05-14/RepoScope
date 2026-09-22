@@ -1,0 +1,17 @@
+<project>
+  <artifactId>reactor</artifactId>
+  <modules>
+    <module>api</module>
+    <module>app</module>
+  </modules>
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>exec-maven-plugin</artifactId>
+        <configuration>
+          <executable>node</executable>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

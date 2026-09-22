@@ -1,9 +1,9 @@
 {
   "name": "reposcope",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.10.0",
   "license": "MIT",
-  "description": "Local, read-only TypeScript and JavaScript architecture explorer",
+  "description": "Local, read-only TypeScript, JavaScript, Python, Java, and Kotlin architecture explorer",
   "type": "module",
   "bin": {
     "reposcope": "apps/cli/dist/main.js"

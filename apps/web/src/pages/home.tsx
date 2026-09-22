@@ -247,6 +247,21 @@ export function HomePage(props: {
           <p className="muted">{lens === "libraries" ? COPY.libraries : COPY.yourCode}</p>
           <section className="card">
             <h2>Coverage snapshot</h2>
+            {snapshot.scope.truncated === true ? (
+              <p role="status" data-testid="scan-partial">
+                This scan is partial.{" "}
+                <a
+                  href="/coverage"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    navigate("/coverage");
+                  }}
+                >
+                  Coverage
+                </a>{" "}
+                lists what was left out.
+              </p>
+            ) : null}
             <ul className="metric-grid">
               <li>Discovered files: {snapshot.coverage.discoveredFiles}</li>
               <li>Analyzed files: {snapshot.coverage.analyzedFiles}</li>

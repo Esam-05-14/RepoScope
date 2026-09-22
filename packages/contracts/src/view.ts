@@ -7,6 +7,7 @@ export const LIBRARY_NODE_PREFIX = "lib:";
 const TEST_PATH =
   /(?:^|\/)(?:__tests__|__mocks__|tests|test|spec|e2e)(?:\/|$)/i;
 const TEST_FILE = /\.(?:test|spec|e2e)\.[cm]?[jt]sx?$/i;
+const PYTHON_TEST = /(?:^|\/)(?:test_.+\.py|.+_test\.py|conftest\.py)$/i;
 const CONFIG_FILE =
   /(?:^|\/)(?:vite|vitest|playwright|webpack|rollup|eslint|prettier|babel|jest|karma|cypress|tailwind|postcss|next|nuxt|astro|remix|svelte\.config|drizzle)(?:\.config)?\.[cm]?[jt]sx?$/i;
 const ENV_DTS = /\.d\.ts$/i;
@@ -18,7 +19,7 @@ export function isViewLens(value: string | undefined): value is ViewLens {
 export function fileRole(fileId: string): FileRole {
   const normalized = fileId.replaceAll("\\", "/");
   const base = normalized.split("/").pop() ?? normalized;
-  if (TEST_PATH.test(normalized) || TEST_FILE.test(base)) {
+  if (TEST_PATH.test(normalized) || TEST_FILE.test(base) || PYTHON_TEST.test(normalized)) {
     return "test";
   }
   if (CONFIG_FILE.test(base) || (ENV_DTS.test(base) && !normalized.includes("/"))) {
@@ -28,6 +29,21 @@ export function fileRole(fileId: string): FileRole {
     return "config";
   }
   return "source";
+}
+
+export type SourceFamily = "typescript" | "python" | "java" | "kotlin";
+
+export function languageFamily(language: string): SourceFamily {
+  if (language === "py") {
+    return "python";
+  }
+  if (language === "java") {
+    return "java";
+  }
+  if (language === "kt") {
+    return "kotlin";
+  }
+  return "typescript";
 }
 
 export function externalKind(name: string): ExternalKind {

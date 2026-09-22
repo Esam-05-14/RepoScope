@@ -1,6 +1,6 @@
 # Python and Java extension plan
 
-Status: **L0 accepted.** ADR-R08 through ADR-R11 are accepted. The schema document is `1.1.0`. Writers still emit snapshot `schemaVersion` `1.0.0`. The release promise is still TypeScript and JavaScript. Next wave is L1 (engine dispatch). No Python or Java parser in L0.
+Status: **L1–L7 accepted.** Engine dispatch keeps the `fixtures/esm-baseline` graph digest. Python, Java, and Kotlin imports are first-party adapters. L6 reads `include("...")` strings from `settings.gradle` and `settings.gradle.kts` and does not run Gradle. L7 is a bounded Kotlin import extractor (`parser-kt`); the Java resolver still matches `.java` only. Writers emit schema `1.1.0` when a snapshot contains a `py`, `java`, or `kt` node, and `1.0.0` otherwise. See ADR-R12 and ADR-R13.
 
 RepoScope today (`0.9.2-view`) is a local, read-only TypeScript and JavaScript file graph. `A → B` means file A declares a supported dependency on B. The central question stays: what depends on this file, and which evidence should be inspected before changing it. That answer is a traversal of observed dependencies. It is not a runtime forecast.
 

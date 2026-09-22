@@ -1,5 +1,8 @@
 export const SCHEMA_VERSION = "1.0.0";
-export const ENGINE_VERSION = "0.9.2-view";
+/** Writers emit this once a snapshot contains a py, java, or kt node. */
+export const MULTI_LANGUAGE_SCHEMA_VERSION = "1.1.0";
+export const ENGINE_VERSION = "0.10.0-lang";
+export const PRODUCT_VERSION = "0.10.0";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [
@@ -72,10 +75,12 @@ export {
   externalKind,
   fileRole,
   isViewLens,
+  languageFamily,
   libraryNodeId,
   parseLibraryNodeId,
   type ExternalKind,
   type FileRole,
+  type SourceFamily,
   type ViewLens,
 } from "./view.js";
 export type {
@@ -86,6 +91,7 @@ export type {
   ScanProgressResponse,
   SnapshotComparison,
 } from "./comparison.js";
+export { isTsLanguageId } from "./snapshot.js";
 export type {
   AnalysisSnapshot,
   ConstructCounts,

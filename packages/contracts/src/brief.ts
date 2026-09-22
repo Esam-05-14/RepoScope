@@ -10,6 +10,7 @@ export const BRIEF_CLAIMS = [
   "This brief lists repository paths. Keep it on this machine unless you intend to share that structure.",
   "Pasting into a cloud assistant leaves this machine. RepoScope does not call a model.",
   "A component is a directory or workspace package prefix. Rolled-up edges are observed file imports, not runtime module boundaries.",
+  "Python, Java, and Kotlin edges are declared imports resolved under the selected project configuration.",
 ] as const;
 
 export interface BriefComponent {

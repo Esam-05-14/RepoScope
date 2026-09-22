@@ -22,7 +22,7 @@ describe("L0 schema draft", () => {
     };
     expect(schema.$id).toBe("https://reposcope.local/schemas/analysis-snapshot/1.1.0");
     expect(schema.$defs.FileNode.properties.language.enum).toEqual(
-      expect.arrayContaining(["py", "java"]),
+      expect.arrayContaining(["py", "java", "kt"]),
     );
     expect(schema.$defs.Resolution.properties.reasonCode.enum).toContain("WILDCARD_IMPORT");
     expect(schema.$defs.ProjectContext.properties.language.enum).toEqual([

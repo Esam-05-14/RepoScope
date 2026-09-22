@@ -1,8 +1,9 @@
 import path from "node:path";
 import {
   ENGINE_VERSION,
-  PARSER_VERSION,
+  MULTI_LANGUAGE_SCHEMA_VERSION,
   SCHEMA_VERSION,
+  isTsLanguageId,
   semanticEdgeKey,
   syntaxClassOf,
   validateAnalysisSnapshot,
@@ -45,6 +46,10 @@ import {
   resolveWorkspaceSpecifier,
   type PackageManifest,
 } from "./workspace-resolve.js";
+import { collectForeignObservations } from "./languages/collect.js";
+import { buildLanguageModel } from "./languages/model.js";
+import { resolveDeclared } from "./languages/resolve.js";
+import { emittedParserVersion, isForeignLanguage } from "./languages/version.js";
 
 export interface ScanProgress {
   phase: "inventory" | "parse" | "graph";
@@ -81,6 +86,20 @@ export class ScanCanceledError extends Error {
 export { repositoryIdentityForRoot };
 
 const MAX_OBSERVATIONS_PER_FILE = 512;
+
+function isTsInventoryTarget(relative: string): boolean {
+  const extension = relative.slice(relative.lastIndexOf("."));
+  return (
+    extension === ".ts" ||
+    extension === ".tsx" ||
+    extension === ".js" ||
+    extension === ".jsx" ||
+    extension === ".mts" ||
+    extension === ".cts" ||
+    extension === ".mjs" ||
+    extension === ".cjs"
+  );
+}
 const RESOLVE_CACHE_CAP = 20_000;
 const PROGRESS_EVERY = 32;
 
@@ -141,6 +160,13 @@ function classifyResolution(input: {
   if (input.resolved !== undefined && isInsideRoot(input.host.root, input.resolved)) {
     const relative = toPosixRelative(input.host.root, input.resolved);
     if (input.inventoryIds.has(relative)) {
+      if (!isTsInventoryTarget(relative)) {
+        return {
+          status: "unsupported",
+          contextId: input.contextId,
+          reasonCode: "UNSUPPORTED_SYNTAX",
+        };
+      }
       return {
         status: "internal",
         targetId: relative,
@@ -166,6 +192,13 @@ function classifyResolution(input: {
       cache: input.workspaceCache,
     });
     if (workspace !== undefined) {
+      if (workspace.targetId !== undefined && !isTsInventoryTarget(workspace.targetId)) {
+        return {
+          status: "unsupported",
+          contextId: input.contextId,
+          reasonCode: "UNSUPPORTED_SYNTAX",
+        };
+      }
       return workspace;
     }
   }
@@ -357,6 +390,12 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
   if (canceled()) {
     return { snapshot: undefined, canceled: true };
   }
+  const hasForeign = inventory.files.some((file) => isForeignLanguage(file.language));
+  const emitted = emittedParserVersion(hasForeign);
+  const languageModel = buildLanguageModel({
+    files: inventory.files.map((file) => file.relativePath),
+    manifests: inventory.manifests,
+  });
   const inferred = inferredContext();
   const loaded = loadProjectContexts(host, inventory.configFiles);
   const contexts = [inferred, ...loaded];
@@ -368,7 +407,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
   const resolveStats = { hits: 0 };
   const workspaceCache = new Map<string, PackageManifest | null>();
   let reusedResolutions = 0;
-  const scanTruncations: string[] = [];
+  const scanTruncations: string[] = [...languageModel.truncations];
   const previous = options.previousSnapshot;
   const previousNodes = new Map(previous?.nodes.map((node) => [node.id, node]) ?? []);
   const previousObservations = new Map<string, ImportObservation[]>();
@@ -410,16 +449,88 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     if (canceled()) {
       return { snapshot: undefined, canceled: true };
     }
-    const context = selectContext(file.absolutePath);
+    const context = isForeignLanguage(file.language)
+      ? languageModel.contextFor(file.relativePath, file.language)
+      : selectContext(file.absolutePath);
     const previousNode = previousNodes.get(file.relativePath);
     const previousDigest = previousContextDigest(previous, context.record.id);
     const canReuse =
+      previous?.parserVersion === emitted &&
       previousNode !== undefined &&
       previousNode.contentHash === file.contentHash &&
       previousNode.projectContextId === context.record.id &&
       (context.record.digest === undefined ||
         previousDigest === undefined ||
         previousDigest === context.record.digest);
+
+    if (isForeignLanguage(file.language)) {
+      if (file.text === undefined) {
+        nodes.push({
+          id: file.relativePath,
+          relativePath: file.relativePath,
+          contentHash: file.contentHash,
+          language: file.language,
+          projectContextId: context.record.id,
+          parseStatus: "skipped",
+        });
+        continue;
+      }
+      if (canReuse) {
+        nodes.push({
+          ...previousNode,
+          projectContextId: context.record.id,
+        });
+        if (previousNode.parseStatus !== "skipped") {
+          analyzedFiles += 1;
+        }
+        reusedFiles += 1;
+        for (const prior of previousObservations.get(file.relativePath) ?? []) {
+          const keepPrior =
+            prior.resolution.reasonCode === "WILDCARD_IMPORT" ||
+            prior.resolution.reasonCode === "UNSUPPORTED_SYNTAX" ||
+            prior.syntaxKind === "other-unsupported";
+          const resolution = keepPrior
+            ? { ...prior.resolution, contextId: context.record.id }
+            : resolveDeclared({
+                language: file.language,
+                specifier: prior.specifier,
+                supported: true,
+                importerRelative: file.relativePath,
+                contextId: context.record.id,
+                model: languageModel,
+              });
+          observations.push({ ...prior, resolution });
+        }
+        emitParseProgress();
+        continue;
+      }
+      analyzedFiles += 1;
+      nodes.push({
+        id: file.relativePath,
+        relativePath: file.relativePath,
+        contentHash: file.contentHash,
+        language: file.language,
+        projectContextId: context.record.id,
+        parseStatus: "ok",
+      });
+      const collected = collectForeignObservations({
+        text: file.text,
+        language: file.language,
+        relativePath: file.relativePath,
+        contextId: context.record.id,
+        model: languageModel,
+      });
+      if (collected.truncated) {
+        scanTruncations.push(`max-observations:${file.relativePath}`);
+      }
+      observations.push(...collected.observations);
+      emitParseProgress();
+      continue;
+    }
+
+    if (!isTsLanguageId(file.language)) {
+      continue;
+    }
 
     if (canReuse) {
       nodes.push({
@@ -526,6 +637,12 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
 
   const grouped = new Map<string, SemanticEdge>();
   for (const observation of observations) {
+    if (
+      observation.resolution.status === "unsupported" &&
+      observation.resolution.reasonCode === "WILDCARD_IMPORT"
+    ) {
+      continue;
+    }
     const targetKey =
       observation.resolution.targetId !== undefined
         ? `internal:${observation.resolution.targetId}`
@@ -573,10 +690,23 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     reusedFiles,
   });
 
+  const usedContextIds = new Set(nodes.map((node) => node.projectContextId));
+  const knownContextIds = new Set(contexts.map((context) => context.record.id));
+  const languageContexts = languageModel.records.filter(
+    (record) => usedContextIds.has(record.id) && !knownContextIds.has(record.id),
+  );
+  const workspacePackages = [...inventory.workspacePackages];
+  for (const extra of languageModel.workspacePackages) {
+    if (!workspacePackages.some((item) => item.directory === extra.directory)) {
+      workspacePackages.push(extra);
+    }
+  }
+  workspacePackages.sort((left, right) => left.directory.localeCompare(right.directory));
+
   const snapshot: AnalysisSnapshot = {
-    schemaVersion: SCHEMA_VERSION,
+    schemaVersion: hasForeign ? MULTI_LANGUAGE_SCHEMA_VERSION : SCHEMA_VERSION,
     engineVersion: ENGINE_VERSION,
-    parserVersion: PARSER_VERSION,
+    parserVersion: emitted,
     scanId: options.scanId,
     scope: {
       kind: options.scopeKind ?? "working-tree",
@@ -586,7 +716,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
       limits: { ...DEFAULT_LIMITS },
       truncated: inventory.truncations.length > 0 || scanTruncations.length > 0,
     },
-    projectContexts: contexts.map((context) => context.record),
+    projectContexts: [...contexts.map((context) => context.record), ...languageContexts],
     nodes,
     observations,
     semanticEdges,
@@ -600,7 +730,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
       reusedFiles,
       declaredPackages: inventory.declaredPackages,
       skippedDirectories: inventory.skippedDirectories,
-      workspacePackages: inventory.workspacePackages,
+      workspacePackages,
       elapsedMs: Math.max(0, Date.now() - started),
       resolverCacheHits: resolveStats.hits,
       reusedResolutions,

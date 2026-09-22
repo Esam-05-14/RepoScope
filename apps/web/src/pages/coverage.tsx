@@ -1,6 +1,7 @@
 import type { ImportObservation } from "@reposcope/contracts";
 import type { ReactElement } from "react";
 import { COPY } from "../lib/copy.js";
+import { truncationLabel } from "../lib/truncation-label.js";
 import { useWorkspace } from "../workspace.js";
 
 function isOmission(observation: ImportObservation): boolean {
@@ -115,7 +116,7 @@ export function CoveragePage(): ReactElement {
           <h2>Truncations</h2>
           <ul>
             {snapshot.coverage.truncations.map((item) => (
-              <li key={item}>{item}</li>
+              <li key={item}>{truncationLabel(item)}</li>
             ))}
           </ul>
         </section>

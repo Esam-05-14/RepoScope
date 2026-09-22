@@ -4,6 +4,9 @@
     { "path": "packages/contracts" },
     { "path": "packages/graph" },
     { "path": "packages/parser-ts" },
+    { "path": "packages/parser-py" },
+    { "path": "packages/parser-java" },
+    { "path": "packages/parser-kt" },
     { "path": "packages/engine" },
     { "path": "apps/server" },
     { "path": "apps/cli" }

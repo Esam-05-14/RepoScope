@@ -8,6 +8,9 @@
   "references": [
     { "path": "../contracts" },
     { "path": "../graph" },
-    { "path": "../parser-ts" }
+    { "path": "../parser-ts" },
+    { "path": "../parser-py" },
+    { "path": "../parser-java" },
+    { "path": "../parser-kt" }
   ]
 }

@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { ParseStatus, TsLanguageId, WorkspacePackage } from "@reposcope/contracts";
-import { languageFromPath, SOURCE_EXTENSIONS } from "@reposcope/parser-ts";
+import type { LanguageId, ParseStatus, WorkspacePackage } from "@reposcope/contracts";
+import { languageFromPath } from "@reposcope/parser-ts";
 import type { AnalysisFilesystemHost } from "./host.js";
 import { toPosixRelative } from "./paths.js";
 
@@ -30,6 +30,14 @@ const SKIP_DIRECTORIES = new Set([
   ".svelte-kit",
   "storybook-static",
   "tmp",
+  "__pycache__",
+  ".venv",
+  "venv",
+  ".tox",
+  ".mypy_cache",
+  ".pytest_cache",
+  "target",
+  ".gradle",
 ]);
 
 const MAX_WALK_DEPTH = 32;
@@ -41,7 +49,7 @@ export interface InventoryFile {
   absolutePath: string;
   relativePath: string;
   contentHash: string;
-  language: TsLanguageId;
+  language: LanguageId;
   text?: string;
   parseStatus: ParseStatus;
   skipReason?: string;
@@ -50,6 +58,7 @@ export interface InventoryFile {
 export interface InventoryResult {
   files: InventoryFile[];
   configFiles: string[];
+  manifests: { relativePath: string; text: string }[];
   discoveredFiles: number;
   skippedFiles: number;
   skippedDirectories: number;
@@ -60,6 +69,31 @@ export interface InventoryResult {
 }
 
 const MAX_PACKAGE_JSON_BYTES = 256 * 1024;
+const MANIFEST_NAMES = new Set([
+  "pyproject.toml",
+  "setup.cfg",
+  "pom.xml",
+  "settings.gradle",
+  "settings.gradle.kts",
+]);
+
+function languageForFile(name: string): LanguageId | undefined {
+  const fromTypeScript = languageFromPath(name);
+  if (fromTypeScript !== undefined) {
+    return fromTypeScript;
+  }
+  const extension = path.extname(name);
+  if (extension === ".py") {
+    return "py";
+  }
+  if (extension === ".java") {
+    return "java";
+  }
+  if (extension === ".kt") {
+    return "kt";
+  }
+  return undefined;
+}
 
 const PACKAGE_NAME = /^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/;
 
@@ -121,6 +155,7 @@ export function inventoryRepository(
 ): InventoryResult {
   const files: InventoryFile[] = [];
   const configFiles: string[] = [];
+  const manifests: { relativePath: string; text: string }[] = [];
   const truncations: string[] = [];
   const declared = new Set<string>();
   const workspace = new Map<string, WorkspacePackage>();
@@ -166,6 +201,20 @@ export function inventoryRepository(
       if (name === "tsconfig.json" || name === "jsconfig.json") {
         configFiles.push(absolute);
       }
+      if (MANIFEST_NAMES.has(name)) {
+        const manifestBytes = host.readFileBytes(absolute);
+        const relativePath = toPosixRelative(host.root, absolute);
+        if (manifestBytes === undefined) {
+          skippedFiles += 1;
+        } else if (manifestBytes.byteLength > MAX_PACKAGE_JSON_BYTES) {
+          truncations.push(`manifest-too-large:${relativePath}`);
+        } else {
+          const manifestText = decodeText(manifestBytes);
+          if (manifestText !== undefined) {
+            manifests.push({ relativePath, text: manifestText });
+          }
+        }
+      }
       if (name === "package.json") {
         const manifest = host.readFileBytes(absolute);
         if (manifest !== undefined && manifest.byteLength <= MAX_PACKAGE_JSON_BYTES) {
@@ -182,8 +231,8 @@ export function inventoryRepository(
           }
         }
       }
-      const language = languageFromPath(name);
-      if (language === undefined || !SOURCE_EXTENSIONS.has(path.extname(name))) {
+      const language = languageForFile(name);
+      if (language === undefined) {
         continue;
       }
       if (isCredential(name)) {
@@ -230,6 +279,7 @@ export function inventoryRepository(
   return {
     files,
     configFiles,
+    manifests,
     discoveredFiles,
     skippedFiles,
     skippedDirectories,

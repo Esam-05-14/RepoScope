@@ -127,7 +127,7 @@
         "contentHash": { "$ref": "#/$defs/Sha256Digest" },
         "language": {
           "type": "string",
-          "enum": ["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs", "py", "java"]
+          "enum": ["ts", "tsx", "js", "jsx", "mts", "cts", "mjs", "cjs", "py", "java", "kt"]
         },
         "projectContextId": { "type": "string", "minLength": 1, "maxLength": 128 },
         "parseStatus": { "type": "string", "enum": ["ok", "partial", "failed", "skipped"] }

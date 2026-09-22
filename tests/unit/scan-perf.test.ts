@@ -12,7 +12,7 @@ describe("scan performance bookkeeping", () => {
     });
     expect(snapshot.coverage.elapsedMs).toBeGreaterThanOrEqual(0);
     expect(snapshot.coverage.resolverCacheHits).toBeGreaterThan(0);
-    expect(snapshot.engineVersion).toBe("0.9.2-view");
+    expect(snapshot.engineVersion).toBe("0.10.0-lang");
   });
 
   it("keeps an identical digest when the same tree is scanned twice", () => {
