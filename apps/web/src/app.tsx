@@ -2,6 +2,8 @@ import { useEffect, useState, type ReactElement } from "react";
 import { Shell } from "./components/shell.js";
 import { fetchHealth } from "./lib/api.js";
 import { currentRoute, onRouteChange } from "./lib/router.js";
+import { BriefPage } from "./pages/brief.js";
+import { BoundariesPage } from "./pages/boundaries.js";
 import { ComparePage } from "./pages/compare.js";
 import { CoveragePage } from "./pages/coverage.js";
 import { ExplorePage } from "./pages/explore.js";
@@ -47,6 +49,12 @@ function RouteBody(props: { rootKind: string; status: string }): ReactElement {
   }
   if (route === "/compare") {
     return <ComparePage />;
+  }
+  if (route === "/boundaries") {
+    return <BoundariesPage />;
+  }
+  if (route === "/brief") {
+    return <BriefPage />;
   }
   if (route === "/settings") {
     return <SettingsPage />;
@@ -94,6 +102,10 @@ export function App(): ReactElement {
       <main className="page">
         <h1>RepoScope</h1>
         <StatusLine state={state} />
+        <p>
+          Opening <code>http://127.0.0.1:port/</code> by hand has no session. Run{" "}
+          <code>npx reposcope inspect --demo</code> and keep the browser tab it launches.
+        </p>
       </main>
     );
   }

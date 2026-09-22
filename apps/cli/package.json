@@ -1,6 +1,7 @@
 {
   "name": "@reposcope/cli",
   "version": "0.1.0-r1",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "reposcope": "./dist/main.js"

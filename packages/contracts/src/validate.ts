@@ -37,6 +37,10 @@ export function validateAnalysisSnapshot(snapshot: AnalysisSnapshot): void {
     nodeIds.add(node.id);
   }
 
+  for (const listed of snapshot.coverage.workspacePackages ?? []) {
+    rejectAbsolute(listed.directory, "workspacePackages.directory");
+  }
+
   for (const observation of snapshot.observations) {
     assert(nodeIds.has(observation.importerId), `missing importer ${observation.importerId}`);
     rejectAbsolute(observation.importerId, "observation.importerId");

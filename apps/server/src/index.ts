@@ -1,4 +1,4 @@
-export { buildApp } from "./app.js";
+export { buildApp, redactRequestUrl } from "./app.js";
 export { startServer, LOOPBACK_HOST } from "./start.js";
 export {
   createSession,

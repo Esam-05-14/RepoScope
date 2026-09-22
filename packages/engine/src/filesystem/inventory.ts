@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import path from "node:path";
-import type { LanguageId, ParseStatus } from "@reposcope/contracts";
+import type { LanguageId, ParseStatus, WorkspacePackage } from "@reposcope/contracts";
 import { languageFromPath, SOURCE_EXTENSIONS } from "@reposcope/parser-ts";
 import type { AnalysisFilesystemHost } from "./host.js";
 import { toPosixRelative } from "./paths.js";
@@ -19,7 +19,21 @@ const SKIP_DIRECTORIES = new Set([
   "coverage",
   ".next",
   "out",
+  ".turbo",
+  ".output",
+  ".cache",
+  "vendor",
+  ".svn",
+  ".hg",
+  ".vercel",
+  ".nuxt",
+  ".svelte-kit",
+  "storybook-static",
+  "tmp",
 ]);
+
+const MAX_WALK_DEPTH = 32;
+const MAX_DIR_ENTRIES = 4096;
 
 const CREDENTIAL_NAMES = new Set([".env", "id_rsa", "credentials.json"]);
 
@@ -28,7 +42,6 @@ export interface InventoryFile {
   relativePath: string;
   contentHash: string;
   language: LanguageId;
-  bytes: Buffer;
   text?: string;
   parseStatus: ParseStatus;
   skipReason?: string;
@@ -39,8 +52,53 @@ export interface InventoryResult {
   configFiles: string[];
   discoveredFiles: number;
   skippedFiles: number;
+  skippedDirectories: number;
+  declaredPackages: string[];
+  workspacePackages: WorkspacePackage[];
   truncations: string[];
   analyzedBytes: number;
+}
+
+const MAX_PACKAGE_JSON_BYTES = 256 * 1024;
+
+const PACKAGE_NAME = /^(?:@[A-Za-z0-9._-]+\/)?[A-Za-z0-9._-]+$/;
+
+function inspectPackageJson(
+  text: string,
+  directory: string,
+): { names: string[]; workspace?: WorkspacePackage } {
+  try {
+    const parsed = JSON.parse(text) as {
+      name?: unknown;
+      dependencies?: unknown;
+      devDependencies?: unknown;
+      peerDependencies?: unknown;
+      optionalDependencies?: unknown;
+    };
+    const names = new Set<string>();
+    for (const field of [
+      parsed.dependencies,
+      parsed.devDependencies,
+      parsed.peerDependencies,
+      parsed.optionalDependencies,
+    ]) {
+      if (field === undefined || field === null || typeof field !== "object") {
+        continue;
+      }
+      for (const key of Object.keys(field)) {
+        if (key.length > 0 && key.length <= 256) {
+          names.add(key);
+        }
+      }
+    }
+    const workspace =
+      typeof parsed.name === "string" && PACKAGE_NAME.test(parsed.name) && parsed.name.length <= 256
+        ? { name: parsed.name, directory }
+        : undefined;
+    return { names: [...names], workspace };
+  } catch {
+    return { names: [] };
+  }
 }
 
 function isCredential(name: string): boolean {
@@ -64,13 +122,23 @@ export function inventoryRepository(
   const files: InventoryFile[] = [];
   const configFiles: string[] = [];
   const truncations: string[] = [];
+  const declared = new Set<string>();
+  const workspace = new Map<string, WorkspacePackage>();
   let discoveredFiles = 0;
   let skippedFiles = 0;
+  let skippedDirectories = 0;
   let analyzedBytes = 0;
 
-  const visit = (directory: string): void => {
+  const visit = (directory: string, depth: number): void => {
+    if (depth > MAX_WALK_DEPTH) {
+      truncations.push("max-directory-depth");
+      return;
+    }
     const names = host.readDirectory(directory);
-    for (const name of names) {
+    if (names.length > MAX_DIR_ENTRIES) {
+      truncations.push("max-directory-entries");
+    }
+    for (const name of names.slice(0, MAX_DIR_ENTRIES)) {
       const absolute = path.join(directory, name);
       if (host.confine(absolute) === null) {
         continue;
@@ -86,9 +154,10 @@ export function inventoryRepository(
       }
       if (stat.isDirectory) {
         if (SKIP_DIRECTORIES.has(name)) {
+          skippedDirectories += 1;
           continue;
         }
-        visit(absolute);
+        visit(absolute, depth + 1);
         continue;
       }
       if (!stat.isFile) {
@@ -96,6 +165,22 @@ export function inventoryRepository(
       }
       if (name === "tsconfig.json" || name === "jsconfig.json") {
         configFiles.push(absolute);
+      }
+      if (name === "package.json") {
+        const manifest = host.readFileBytes(absolute);
+        if (manifest !== undefined && manifest.byteLength <= MAX_PACKAGE_JSON_BYTES) {
+          const text = decodeText(manifest);
+          if (text !== undefined) {
+            const directory = toPosixRelative(host.root, path.dirname(absolute));
+            const inspected = inspectPackageJson(text, directory === "" ? "." : directory);
+            for (const pkg of inspected.names) {
+              declared.add(pkg);
+            }
+            if (inspected.workspace !== undefined) {
+              workspace.set(inspected.workspace.directory, inspected.workspace);
+            }
+          }
+        }
       }
       const language = languageFromPath(name);
       if (language === undefined || !SOURCE_EXTENSIONS.has(path.extname(name))) {
@@ -132,7 +217,6 @@ export function inventoryRepository(
         relativePath: toPosixRelative(host.root, absolute),
         contentHash: `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
         language,
-        bytes,
         text,
         parseStatus: text === undefined ? "skipped" : "ok",
         skipReason: text === undefined ? "ENCODING_UNSUPPORTED" : undefined,
@@ -140,7 +224,7 @@ export function inventoryRepository(
     }
   };
 
-  visit(host.root);
+  visit(host.root, 0);
   configFiles.sort();
   files.sort((a, b) => (a.relativePath < b.relativePath ? -1 : 1));
   return {
@@ -148,7 +232,10 @@ export function inventoryRepository(
     configFiles,
     discoveredFiles,
     skippedFiles,
-    truncations: [...new Set(truncations)],
+    skippedDirectories,
+    declaredPackages: [...declared].sort(),
+    workspacePackages: [...workspace.values()].sort((left, right) => left.directory.localeCompare(right.directory)),
+    truncations: [...new Set(truncations)].slice(0, 32),
     analyzedBytes,
   };
 }

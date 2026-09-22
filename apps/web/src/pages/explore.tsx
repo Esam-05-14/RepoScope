@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import type { EvidenceResponse, SemanticEdge } from "@reposcope/contracts";
 import { cycleGroupsFromSnapshot, impactFromSnapshot } from "../lib/analyze.js";
 import { FileTree } from "../components/file-tree.js";
 import { GraphView } from "../components/graph-view.js";
 import { Inspector } from "../components/inspector.js";
 import { RelationList } from "../components/relation-list.js";
-import { fetchEvidence, fetchImpact } from "../lib/api.js";
+import { fetchEvidence, fetchImpact, openInEditor } from "../lib/api.js";
+import { briefFromSnapshot } from "../lib/brief.js";
+import { fileRelationsFromSnapshot, relationsFromSnapshot } from "../lib/relations.js";
 import { COPY } from "../lib/copy.js";
 import { useWorkspace } from "../workspace.js";
 
@@ -100,7 +102,19 @@ export function ExplorePage(): ReactElement {
     }
   }
 
-  if (snapshot === undefined) {
+  const packed = useMemo(
+    () => (snapshot === undefined ? undefined : briefFromSnapshot(snapshot)),
+    [snapshot],
+  );
+  const importedBy = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const file of packed?.brief.files ?? []) {
+      map.set(file.id, file.importedBy);
+    }
+    return map;
+  }, [packed]);
+
+  if (snapshot === undefined || packed === undefined) {
     return (
       <main className="page">
         <h1>Explore</h1>
@@ -110,25 +124,25 @@ export function ExplorePage(): ReactElement {
   }
 
   const cycles = cycleGroupsFromSnapshot(snapshot);
+  const relations = relationsFromSnapshot(snapshot);
+  const fileRelations =
+    selected === undefined ? undefined : fileRelationsFromSnapshot(snapshot, selected);
+  const selectedFacts = packed.brief.files.find((file) => file.id === selected);
+  const selectedNode = snapshot.nodes.find((node) => node.id === selected);
+  const selectedContext = snapshot.projectContexts?.find(
+    (context) => context.id === selectedNode?.projectContextId,
+  );
+  const outgoing = snapshot.semanticEdges.filter((item) => item.importerId === selected);
+  const incoming = snapshot.semanticEdges.filter((item) => item.targetId === selected);
 
   return (
     <div className={`explorer ${inspectorOpen ? "inspector-open" : ""}`}>
       <aside className="tree-pane">
-        <label className="search">
-          Search files
-          <input
-            ref={searchRef}
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-            }}
-            placeholder="Filter paths"
-          />
-        </label>
         <FileTree
           paths={snapshot.nodes.map((node) => node.id)}
           selected={selected}
           query={query}
+          importedBy={importedBy}
           onSelect={(id) => {
             setEdge(undefined);
             void loadFor(id);
@@ -137,10 +151,21 @@ export function ExplorePage(): ReactElement {
       </aside>
       <section className="center-pane">
         <div className="center-toolbar">
-          <button type="button" onClick={() => setListMode(false)}>
+          <label className="search search-inline">
+            Search files
+            <input
+              ref={searchRef}
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+              }}
+              placeholder="Filter paths"
+            />
+          </label>
+          <button type="button" aria-pressed={!listMode} onClick={() => setListMode(false)}>
             Graph
           </button>
-          <button type="button" onClick={() => setListMode(true)}>
+          <button type="button" aria-pressed={listMode} onClick={() => setListMode(true)}>
             List
           </button>
         </div>
@@ -169,6 +194,32 @@ export function ExplorePage(): ReactElement {
             }}
           />
         )}
+        <section className="cycles" data-testid="component-relations">
+          <h2>Component relations</h2>
+          <p className="muted">{COPY.component}</p>
+          {relations.componentEdges.length === 0 ? (
+            <p>No observed imports that cross a directory or workspace-package prefix.</p>
+          ) : (
+            <table>
+              <thead>
+                <tr>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>File edges</th>
+                </tr>
+              </thead>
+              <tbody>
+                {relations.componentEdges.slice(0, 24).map((edge) => (
+                  <tr key={`${edge.from}>${edge.to}`}>
+                    <td>{edge.from}</td>
+                    <td>{edge.to}</td>
+                    <td>{edge.fileEdges}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
         <section className="cycles" data-testid="cycle-groups">
           <h2>Cycle groups</h2>
           <p className="muted">{COPY.cycle}</p>
@@ -186,8 +237,45 @@ export function ExplorePage(): ReactElement {
       <Inspector
         open={inspectorOpen}
         edge={edge}
+        selectedNode={selected}
+        node={selectedNode}
+        imports={selectedFacts?.imports}
+        importedBy={selectedFacts?.importedBy}
+        outgoing={outgoing}
+        incoming={incoming}
+        contextPath={selectedContext?.configPath}
+        pathMappings={selectedContext?.pathMappings}
+        componentId={fileRelations?.componentId}
+        boundary={fileRelations?.boundary}
+        barrel={fileRelations?.barrel}
+        crossComponentImports={fileRelations?.crossComponentImports}
+        crossComponentImportedBy={fileRelations?.crossComponentImportedBy}
+        coImported={fileRelations?.coImported}
         evidence={evidence}
         impact={impact}
+        onSelectNode={(id) => {
+          void loadFor(id);
+        }}
+        onOpenEditor={
+          selected === undefined || workspace.snapshotId === undefined
+            ? undefined
+            : async () => {
+                const snapshotId = workspace.snapshotId;
+                const nodeId = selected;
+                if (snapshotId === undefined || nodeId === undefined) {
+                  return;
+                }
+                const observation = snapshot.observations.find((item) =>
+                  edge?.observationIds.includes(item.id),
+                );
+                await openInEditor({
+                  snapshotId,
+                  nodeId,
+                  line: observation?.range.startLine,
+                  column: observation?.range.startColumn,
+                });
+              }
+        }
         onClose={() => {
           setInspectorOpen(false);
           restoreFocus.current?.focus();

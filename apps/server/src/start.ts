@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { defaultStoreRoot } from "@reposcope/engine";
 import { buildApp } from "./app.js";
 import type { Session } from "./session.js";
 
@@ -9,6 +10,7 @@ export interface StartServerOptions {
   port?: number;
   staticRoot?: string;
   scanDelayMs?: number;
+  persistRoot?: string;
 }
 
 export interface RunningServer {
@@ -21,10 +23,14 @@ export interface RunningServer {
 export async function startServer(
   options: StartServerOptions,
 ): Promise<RunningServer> {
+  const persistRoot =
+    options.persistRoot ??
+    (process.env.REPOSCOPE_PERSIST === "0" ? undefined : defaultStoreRoot());
   const app = await buildApp({
     session: options.session,
     staticRoot: options.staticRoot,
     scanDelayMs: options.scanDelayMs,
+    persistRoot,
   });
 
   await app.listen({

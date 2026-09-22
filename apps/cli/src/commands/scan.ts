@@ -4,7 +4,7 @@ import {
   exportSnapshot,
   scanRepository,
 } from "@reposcope/engine";
-import { canonicalizeDirectory, defaultStartDir, demoRoot } from "../root.js";
+import { defaultStartDir, demoRoot, resolveCliTarget } from "../root.js";
 
 export interface ScanCommandOptions {
   targetPath?: string;
@@ -13,22 +13,19 @@ export interface ScanCommandOptions {
   commit?: string;
 }
 
-export function scanCommand(options: ScanCommandOptions = {}): void {
+export async function scanCommand(options: ScanCommandOptions = {}): Promise<void> {
   const startDir = defaultStartDir();
   const selected = options.demo
-    ? demoRoot(startDir)
-    : {
-        canonicalRoot: canonicalizeDirectory(options.targetPath ?? process.cwd()),
-        label: options.targetPath ?? process.cwd(),
-      };
+    ? { ...demoRoot(startDir), kind: "cli" as const }
+    : await resolveCliTarget(options.targetPath, options.commit);
   const host =
-    options.commit === undefined
+    options.commit === undefined || selected.kind === "github"
       ? undefined
       : GitObjectFilesystemHost.open(selected.canonicalRoot, options.commit);
   const snapshot = scanRepository({
     root: selected.canonicalRoot,
     host,
-    scopeKind: options.commit === undefined ? "working-tree" : "git-commit",
+    scopeKind: host === undefined ? "working-tree" : "git-commit",
     selectedCommit: host?.commit,
   });
   const exported = exportSnapshot(snapshot);

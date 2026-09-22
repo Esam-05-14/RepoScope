@@ -20,3 +20,17 @@ export {
   stronglyConnectedComponents,
   type CycleGroup,
 } from "./scc.js";
+export {
+  buildComponentRelations,
+  componentIdForFile,
+  fileRelationView,
+  neighborhoodOf,
+  type ComponentEdge,
+  type ComponentNode,
+  type ComponentRelationGraph,
+  type FileRelationView,
+  type RelationEdge,
+  type RelationFile,
+  type RelationObservation,
+  type WorkspacePackageRef,
+} from "./relations.js";

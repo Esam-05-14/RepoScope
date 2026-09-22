@@ -2,7 +2,6 @@ import { useState, type ReactElement } from "react";
 import type { SnapshotComparison } from "@reposcope/contracts";
 import {
   compareSnapshotsApi,
-  fetchDemoFixtures,
   fetchSnapshot,
   importSnapshotApi,
 } from "../lib/api.js";
@@ -15,6 +14,7 @@ export function ComparePage(): ReactElement {
   const [targetId, setTargetId] = useState("");
   const [comparison, setComparison] = useState<SnapshotComparison>();
   const [error, setError] = useState<string>();
+  const [busy, setBusy] = useState(false);
 
   async function runCompare(): Promise<void> {
     setError(undefined);
@@ -32,7 +32,11 @@ export function ComparePage(): ReactElement {
       <div className="actions">
         <label>
           Base
-          <select value={baseId} onChange={(event) => setBaseId(event.target.value)}>
+          <select
+            data-testid="base-snapshot"
+            value={baseId}
+            onChange={(event) => setBaseId(event.target.value)}
+          >
             <option value="">Select</option>
             {workspace.catalog.map((item) => (
               <option key={item.id} value={item.id}>
@@ -43,7 +47,11 @@ export function ComparePage(): ReactElement {
         </label>
         <label>
           Target
-          <select value={targetId} onChange={(event) => setTargetId(event.target.value)}>
+          <select
+            data-testid="target-snapshot"
+            value={targetId}
+            onChange={(event) => setTargetId(event.target.value)}
+          >
             <option value="">Select</option>
             {workspace.catalog.map((item) => (
               <option key={item.id} value={item.id}>
@@ -54,6 +62,7 @@ export function ComparePage(): ReactElement {
         </label>
         <button
           type="button"
+          disabled={busy || baseId === "" || targetId === ""}
           onClick={() => {
             void runCompare();
           }}
@@ -62,14 +71,27 @@ export function ComparePage(): ReactElement {
         </button>
         <button
           type="button"
+          data-testid="load-compare-fixtures"
+          disabled={busy}
           onClick={() => {
             void (async () => {
-              const demo = await fetchDemoFixtures();
-              if (demo.fixtures.some((item) => item.id === "esm-baseline")) {
-                await workspace.runScan({ fixture: "esm-baseline" }, "esm-baseline");
-              }
-              if (demo.fixtures.some((item) => item.id === "esm-revised")) {
-                await workspace.runScan({ fixture: "esm-revised" }, "esm-revised");
+              setBusy(true);
+              setError(undefined);
+              try {
+                const baselineId = await workspace.runScan(
+                  { fixture: "esm-baseline" },
+                  "esm-baseline",
+                );
+                const revisedId = await workspace.runScan(
+                  { fixture: "esm-revised" },
+                  "esm-revised",
+                );
+                setBaseId(baselineId);
+                setTargetId(revisedId);
+              } catch (caught) {
+                setError(caught instanceof Error ? caught.message : "load failed");
+              } finally {
+                setBusy(false);
               }
             })();
           }}
@@ -87,7 +109,7 @@ export function ComparePage(): ReactElement {
                 return;
               }
               void file.text().then(async (text) => {
-                const imported = await importSnapshotApi(JSON.parse(text));
+                const imported = await importSnapshotApi(JSON.parse(text) as unknown);
                 const snapshot = await fetchSnapshot(imported.id);
                 workspace.remember({ id: imported.id, label: file.name }, snapshot, false);
               });
@@ -98,14 +120,30 @@ export function ComparePage(): ReactElement {
       {error !== undefined ? <p role="alert">{error}</p> : null}
       {comparison !== undefined ? (
         <section>
-          {comparison.compatibility.status !== "compatible" ? (
+          {comparison.compatibility.status === "blocked" ? (
             <p role="alert">
               {COPY.compareBlocked} {comparison.compatibility.reasons.join(", ")}
             </p>
+          ) : comparison.compatibility.status === "warning" ? (
+            <p className="muted">
+              Comparison warning: {comparison.compatibility.reasons.join(", ")}
+            </p>
+          ) : null}
+          {comparison.compatibility.status !== "blocked" &&
+          comparison.addedEdges.length === 0 &&
+          comparison.removedEdges.length === 0 &&
+          comparison.changedNodes.length === 0 ? (
+            <p data-testid="empty-diff">Identical semantic inputs produced an empty semantic diff.</p>
           ) : null}
           <h2>Added edges</h2>
           <ul data-testid="added-edges">
             {comparison.addedEdges.map((key) => (
+              <li key={key}>{key}</li>
+            ))}
+          </ul>
+          <h2>Removed edges</h2>
+          <ul data-testid="removed-edges">
+            {comparison.removedEdges.map((key) => (
               <li key={key}>{key}</li>
             ))}
           </ul>

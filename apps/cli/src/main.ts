@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { inspectCommand } from "./commands/inspect.js";
 import { compareCommand } from "./commands/compare.js";
+import { briefCommand } from "./commands/brief.js";
 import { scanCommand } from "./commands/scan.js";
 
 function webDistRoot(): string | undefined {
@@ -25,24 +26,42 @@ async function main(argv: string[]): Promise<void> {
       out: { type: "string" },
       commit: { type: "string" },
       "no-open": { type: "boolean", default: false },
+      reopen: { type: "boolean", default: false },
+      full: { type: "boolean", default: false },
       help: { type: "boolean", default: false },
+      version: { type: "boolean", default: false, short: "v" },
     },
   });
 
+  if (values.version === true) {
+    process.stdout.write("reposcope 0.1.0\n");
+    return;
+  }
+
   if (values.help === true || positionals[0] === undefined) {
     process.stdout.write(
-      "Usage:\n  reposcope inspect [path] [--demo] [--port 8787] [--no-open]\n  reposcope scan [path] [--demo] [--out file] [--commit rev]\n  reposcope compare <base.json> <target.json>\n",
+      "Usage:\n  reposcope inspect [path|github-url] [--demo] [--port 8787] [--reopen] [--no-open] [--commit rev]\n  reposcope scan [path|github-url] [--demo] [--out file] [--commit rev]\n  reposcope brief [path|github-url] [--demo] [--out file] [--full] [--commit rev]\n  reposcope compare <base.json> <target.json>\n  reposcope --version\n",
     );
     return;
   }
 
   const command = positionals[0];
   if (command === "scan") {
-    scanCommand({
+    await scanCommand({
       targetPath: positionals[1],
       demo: values.demo === true,
       out: values.out,
       commit: values.commit,
+    });
+    return;
+  }
+  if (command === "brief") {
+    await briefCommand({
+      targetPath: positionals[1],
+      demo: values.demo === true,
+      out: values.out,
+      commit: values.commit,
+      density: values.full === true ? "full" : "compact",
     });
     return;
   }
@@ -63,13 +82,22 @@ async function main(argv: string[]): Promise<void> {
     throw new Error("port must be an integer between 0 and 65535");
   }
 
-  await inspectCommand({
+  const running = await inspectCommand({
     targetPath: positionals[1],
     demo: values.demo === true,
     port,
     open: values["no-open"] !== true,
     staticRoot: webDistRoot(),
+    commit: values.commit,
+    reopen: values.reopen === true,
   });
+  const stop = (): void => {
+    void running.close().then(() => {
+      process.exit(0);
+    });
+  };
+  process.on("SIGINT", stop);
+  process.on("SIGTERM", stop);
 }
 
 const invoked = fileURLToPath(import.meta.url);

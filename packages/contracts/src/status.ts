@@ -9,7 +9,7 @@ export const SCAN_STATUSES = [
 
 export type ScanStatus = (typeof SCAN_STATUSES)[number];
 
-export const ROOT_KINDS = ["none", "cli", "demo"] as const;
+export const ROOT_KINDS = ["none", "cli", "demo", "github"] as const;
 export type RootKind = (typeof ROOT_KINDS)[number];
 
 export type EdgeClass = "value" | "type" | "mixed";

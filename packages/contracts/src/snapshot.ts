@@ -24,6 +24,7 @@ export type SyntaxKind =
   | "dynamic-import"
   | "require"
   | "import-equals"
+  | "triple-slash-path"
   | "other-unsupported";
 
 export type ResolutionStatus =
@@ -46,7 +47,10 @@ export type ReasonCode =
   | "ENCODING_UNSUPPORTED"
   | "PARSE_FAILED"
   | "LIMIT_HIT"
-  | "SYMLINK_SKIPPED";
+  | "SYMLINK_SKIPPED"
+  | "ASSET_UNSUPPORTED"
+  | "PROTOCOL_UNSUPPORTED"
+  | "NODE_BUILTIN";
 
 export type SyntaxClass = "static-import" | "export-from" | "mixed";
 
@@ -84,6 +88,8 @@ export interface ImportObservation {
   edgeClass: EdgeClass;
   range: SourceRange;
   resolution: Resolution;
+  importedNames?: string[];
+  sideEffect?: boolean;
 }
 
 export interface SemanticEdge {
@@ -94,6 +100,7 @@ export interface SemanticEdge {
   edgeClass: EdgeClass;
   syntaxClass: SyntaxClass;
   observationIds: string[];
+  importedNames?: string[];
 }
 
 export interface ProjectContext {
@@ -101,6 +108,7 @@ export interface ProjectContext {
   kind: "tsconfig" | "jsconfig" | "inferred";
   configPath: string | null;
   digest?: string;
+  pathMappings?: string[];
 }
 
 export interface ConstructCounts {
@@ -119,6 +127,18 @@ export interface Coverage {
   parseFailures: number;
   constructCounts: ConstructCounts;
   truncations: string[];
+  reusedFiles?: number;
+  declaredPackages?: string[];
+  skippedDirectories?: number;
+  workspacePackages?: WorkspacePackage[];
+  elapsedMs?: number;
+  resolverCacheHits?: number;
+  reusedResolutions?: number;
+}
+
+export interface WorkspacePackage {
+  name: string;
+  directory: string;
 }
 
 export interface ScanLimits {

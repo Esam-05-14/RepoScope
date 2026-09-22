@@ -3,7 +3,8 @@ import type { EdgePolicy } from "@reposcope/contracts";
 import { sendError } from "../errors.js";
 import type { Session } from "../session.js";
 import type { AnalysisStore } from "../store.js";
-import { cancelScan, startScan, type ScanRequest } from "../scan-runner.js";
+import { parseGitHubRepoInput } from "@reposcope/engine";
+import { cancelScan, startScan, type ScanRequest, type ScanRunnerOptions } from "../scan-runner.js";
 
 const EDGE_POLICIES = new Set<EdgePolicy>(["value-and-mixed", "include-type-only"]);
 
@@ -37,6 +38,40 @@ function asScanRequest(body: unknown): ScanRequest | { error: string } {
     }
     request.edgePolicy = record.edgePolicy as EdgePolicy;
   }
+  if (record.github !== undefined) {
+    if (typeof record.github !== "string") {
+      return { error: "github must be a github.com locator" };
+    }
+    try {
+      parseGitHubRepoInput(record.github);
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : "github must be a github.com locator",
+      };
+    }
+    request.github = record.github;
+  }
+  if (request.github !== undefined && request.fixture !== undefined) {
+    return { error: "github and fixture cannot be combined" };
+  }
+  if (record.incremental !== undefined) {
+    if (typeof record.incremental !== "boolean") {
+      return { error: "incremental must be a boolean" };
+    }
+    request.incremental = record.incremental;
+  }
+  if (record.previousSnapshotId !== undefined) {
+    if (typeof record.previousSnapshotId !== "string") {
+      return { error: "previousSnapshotId must be an opaque id" };
+    }
+    request.previousSnapshotId = record.previousSnapshotId;
+  }
+  if (record.includeDynamicImport !== undefined) {
+    if (typeof record.includeDynamicImport !== "boolean") {
+      return { error: "includeDynamicImport must be a boolean" };
+    }
+    request.includeDynamicImport = record.includeDynamicImport;
+  }
   return request;
 }
 
@@ -44,7 +79,7 @@ export function registerScanRoutes(
   app: FastifyInstance,
   session: Session,
   store: AnalysisStore,
-  delayMs?: number,
+  runner: ScanRunnerOptions = {},
 ): void {
   app.post("/api/scans", async (request, reply) => {
     const parsed = asScanRequest(request.body);
@@ -56,7 +91,7 @@ export function registerScanRoutes(
       sendError(reply, 400, "VALIDATION_FAILED", "Unknown fixture id.");
       return reply;
     }
-    const started = startScan(store, session, parsed, { delayMs });
+    const started = startScan(store, session, parsed, runner);
     if (started.error === "no-root") {
       sendError(reply, 400, "UNSUPPORTED_REPOSITORY", "No CLI-selected root is available.");
       return reply;
@@ -85,6 +120,7 @@ export function registerScanRoutes(
       phase: record.phase,
       discoveredFiles: record.discoveredFiles,
       analyzedFiles: record.analyzedFiles,
+      reusedFiles: record.reusedFiles,
       message: record.message,
     };
   });

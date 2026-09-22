@@ -2,9 +2,11 @@
 
 RepoScope is local, read-only analysis software. The inspected repository, its filenames, configuration, imported snapshots, and source text are untrusted.
 
-## Before public release
+## Reporting a vulnerability
 
-A real maintainer contact must be added here before any public release. Until that happens, do not invent an email address or publish a fabricated security inbox.
+Do not invent or use a fabricated inbox. Prefer [GitHub security advisories](https://docs.github.com/en/code-security/security-advisories/working-with-repository-security-advisories/privately-reporting-a-security-vulnerability) on this repository. If advisories are not enabled yet, open a private maintainer contact once one is published here.
+
+Please include the RepoScope version (`reposcope --version` or `engineVersion` in a snapshot), the reproduction steps, and whether source or credentials were exposed.
 
 ## Local server boundary
 
@@ -30,4 +32,4 @@ Path checks are not an operating-system sandbox. Concurrent mutation can race. T
 
 Stop the local server, invalidate the session, remove shared exports, review logs for sensitive data, and rotate any real credentials that were exposed.
 
-Private projects (including Tripwire) may be inspected only locally after read-only and export controls pass. Never publish their snapshots, path lists, source, credentials, or architecture screenshots without a separate review.
+Private projects may be inspected only locally after read-only and export controls pass. Never publish their snapshots, path lists, source, credentials, or architecture screenshots without a separate review.

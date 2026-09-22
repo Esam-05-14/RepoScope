@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import path from "node:path";
 import {
   ENGINE_VERSION,
@@ -23,17 +22,30 @@ import {
   parseSourceFile,
   resolveSpecifier,
 } from "@reposcope/parser-ts";
-import { inferredContext, loadProjectContexts, selectContext } from "./contexts.js";
+import {
+  createContextSelector,
+  inferredContext,
+  loadProjectContexts,
+  type BoundContext,
+} from "./contexts.js";
 import { contentManifestDigestOf, graphDigestOf } from "./digest.js";
 import { ConfinedFilesystemHost } from "./filesystem/confined-fs.js";
 import type { AnalysisFilesystemHost } from "./filesystem/host.js";
 import { DEFAULT_LIMITS, inventoryRepository } from "./filesystem/inventory.js";
 import { isInsideRoot, toPosixRelative } from "./filesystem/paths.js";
+import {
+  isAssetSpecifier,
+  isNodeBuiltinSpecifier,
+  isOversizedSpecifier,
+  isProtocolSpecifier,
+} from "./assets.js";
+import { repositoryIdentityForRoot } from "./persist.js";
 
 export interface ScanProgress {
   phase: "inventory" | "parse" | "graph";
   discoveredFiles: number;
   analyzedFiles: number;
+  reusedFiles: number;
 }
 
 export interface ScanOptions {
@@ -43,6 +55,8 @@ export interface ScanOptions {
   scopeKind?: SnapshotKind;
   selectedCommit?: string;
   scanId?: string;
+  previousSnapshot?: AnalysisSnapshot;
+  includeDynamicImport?: boolean;
   shouldCancel?: () => boolean;
   onProgress?: (progress: ScanProgress) => void;
 }
@@ -59,10 +73,11 @@ export class ScanCanceledError extends Error {
   }
 }
 
-function repositoryIdentity(root: string): string {
-  const digest = createHash("sha256").update(path.resolve(root), "utf8").digest("hex");
-  return `repo:${digest.slice(0, 16)}`;
-}
+export { repositoryIdentityForRoot };
+
+const MAX_OBSERVATIONS_PER_FILE = 512;
+const RESOLVE_CACHE_CAP = 20_000;
+const PROGRESS_EVERY = 32;
 
 function emptyCounts(): ConstructCounts {
   return {
@@ -75,6 +90,27 @@ function emptyCounts(): ConstructCounts {
   };
 }
 
+function cheapResolution(specifier: string, contextId: string): Resolution | undefined {
+  if (isOversizedSpecifier(specifier)) {
+    return { status: "unsupported", contextId, reasonCode: "LIMIT_HIT" };
+  }
+  if (isNodeBuiltinSpecifier(specifier)) {
+    return {
+      status: "external",
+      externalName: specifier.slice(0, 256),
+      contextId,
+      reasonCode: "NODE_BUILTIN",
+    };
+  }
+  if (isProtocolSpecifier(specifier)) {
+    return { status: "unsupported", contextId, reasonCode: "PROTOCOL_UNSUPPORTED" };
+  }
+  if (isAssetSpecifier(specifier)) {
+    return { status: "unsupported", contextId, reasonCode: "ASSET_UNSUPPORTED" };
+  }
+  return undefined;
+}
+
 function classifyResolution(input: {
   supported: boolean;
   specifier: string;
@@ -84,6 +120,10 @@ function classifyResolution(input: {
   inventoryIds: ReadonlySet<string>;
   contextId: string;
 }): Resolution {
+  const cheap = cheapResolution(input.specifier, input.contextId);
+  if (cheap !== undefined) {
+    return cheap;
+  }
   if (!input.supported) {
     return {
       status: "unsupported",
@@ -147,7 +187,134 @@ function classifyResolution(input: {
   };
 }
 
+function observationSupported(
+  observation: ImportObservation,
+  includeDynamicImport: boolean,
+): boolean {
+  if (isAssetSpecifier(observation.specifier)) {
+    return false;
+  }
+  if (
+    includeDynamicImport &&
+    observation.syntaxKind === "dynamic-import" &&
+    observation.specifier !== "unknown"
+  ) {
+    return true;
+  }
+  return (
+    observation.resolution.reasonCode !== "UNSUPPORTED_SYNTAX" &&
+    observation.resolution.reasonCode !== "ASSET_UNSUPPORTED"
+  );
+}
+
+function mergeImportedNames(
+  existing: readonly string[] | undefined,
+  next: readonly string[] | undefined,
+): string[] | undefined {
+  if (existing === undefined && next === undefined) {
+    return undefined;
+  }
+  const names = [...new Set([...(existing ?? []), ...(next ?? [])])].sort();
+  return names.slice(0, 64);
+}
+
+function reusePriorResolution(
+  prior: ImportObservation,
+  inventoryIds: ReadonlySet<string>,
+  contextId: string,
+): Resolution | undefined {
+  const cheap = cheapResolution(prior.specifier, contextId);
+  if (cheap !== undefined) {
+    return cheap;
+  }
+  if (
+    prior.resolution.status === "internal" &&
+    prior.resolution.targetId !== undefined &&
+    inventoryIds.has(prior.resolution.targetId)
+  ) {
+    return {
+      ...prior.resolution,
+      contextId,
+    };
+  }
+  return undefined;
+}
+
+function resolveObservation(input: {
+  specifier: string;
+  supported: boolean;
+  containingFile: string;
+  options: BoundContext["options"];
+  host: AnalysisFilesystemHost;
+  inventoryIds: ReadonlySet<string>;
+  contextId: string;
+  cache: Map<string, Resolution>;
+  stats: { hits: number };
+}): Resolution {
+  const cheap = cheapResolution(input.specifier, input.contextId);
+  if (cheap !== undefined) {
+    return cheap;
+  }
+  const cacheKey = `${input.contextId}\0${path.dirname(input.containingFile)}\0${input.specifier}\0${input.supported ? "1" : "0"}`;
+  const cached = input.cache.get(cacheKey);
+  if (cached !== undefined) {
+    input.stats.hits += 1;
+    return cached;
+  }
+  const resolved = input.supported
+    ? resolveSpecifier({
+        specifier: input.specifier,
+        containingFile: input.containingFile,
+        options: input.options,
+        host: input.host,
+      })
+    : undefined;
+  const resolution = classifyResolution({
+    supported: input.supported,
+    specifier: input.specifier,
+    containingFile: input.containingFile,
+    resolved,
+    host: input.host,
+    inventoryIds: input.inventoryIds,
+    contextId: input.contextId,
+  });
+  if (input.cache.size < RESOLVE_CACHE_CAP) {
+    input.cache.set(cacheKey, resolution);
+  }
+  return resolution;
+}
+
+function countObservations(observations: readonly ImportObservation[]): ConstructCounts {
+  const counts = emptyCounts();
+  for (const observation of observations) {
+    if (observation.edgeClass === "type") {
+      counts.typeOnly += 1;
+    }
+    if (observation.edgeClass === "mixed") {
+      counts.mixed += 1;
+    }
+    if (observation.resolution.status === "internal") {
+      counts.internal += 1;
+    } else if (observation.resolution.status === "external") {
+      counts.external += 1;
+    } else if (observation.resolution.status === "unsupported") {
+      counts.unsupported += 1;
+    } else if (observation.resolution.status === "unresolved") {
+      counts.unresolved += 1;
+    }
+  }
+  return counts;
+}
+
+function previousContextDigest(
+  previous: AnalysisSnapshot | undefined,
+  contextId: string,
+): string | undefined {
+  return previous?.projectContexts?.find((context) => context.id === contextId)?.digest;
+}
+
 export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
+  const started = Date.now();
   const root = path.resolve(options.root);
   const host = options.host ?? new ConfinedFilesystemHost(root);
   const canceled = (): boolean => options.shouldCancel?.() === true;
@@ -158,6 +325,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     phase: "inventory",
     discoveredFiles: 0,
     analyzedFiles: 0,
+    reusedFiles: 0,
   });
   const inventory = inventoryRepository(host);
   if (canceled()) {
@@ -166,26 +334,103 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
   const inferred = inferredContext();
   const loaded = loadProjectContexts(host, inventory.configFiles);
   const contexts = [inferred, ...loaded];
+  const selectContext = createContextSelector(root, loaded, inferred);
   const inventoryIds = new Set(inventory.files.map((file) => file.relativePath));
   const edgePolicy = options.edgePolicy ?? "value-and-mixed";
+  const includeDynamicImport = options.includeDynamicImport === true;
+  const resolveCache = new Map<string, Resolution>();
+  const resolveStats = { hits: 0 };
+  let reusedResolutions = 0;
+  const scanTruncations: string[] = [];
+  const previous = options.previousSnapshot;
+  const previousNodes = new Map(previous?.nodes.map((node) => [node.id, node]) ?? []);
+  const previousObservations = new Map<string, ImportObservation[]>();
+  for (const observation of previous?.observations ?? []) {
+    const list = previousObservations.get(observation.importerId) ?? [];
+    list.push(observation);
+    previousObservations.set(observation.importerId, list);
+  }
 
   const nodes: FileNode[] = [];
   const observations: ImportObservation[] = [];
-  const counts = emptyCounts();
   let parseFailures = 0;
   let analyzedFiles = 0;
+  let reusedFiles = 0;
+  let parsedSinceProgress = 0;
+
+  const emitParseProgress = (force = false): void => {
+    parsedSinceProgress += 1;
+    if (!force && parsedSinceProgress < PROGRESS_EVERY) {
+      return;
+    }
+    parsedSinceProgress = 0;
+    options.onProgress?.({
+      phase: "parse",
+      discoveredFiles: inventory.discoveredFiles,
+      analyzedFiles,
+      reusedFiles,
+    });
+  };
 
   options.onProgress?.({
     phase: "parse",
     discoveredFiles: inventory.discoveredFiles,
     analyzedFiles: 0,
+    reusedFiles: 0,
   });
 
   for (const file of inventory.files) {
     if (canceled()) {
       return { snapshot: undefined, canceled: true };
     }
-    const context = selectContext(file.absolutePath, root, loaded, inferred);
+    const context = selectContext(file.absolutePath);
+    const previousNode = previousNodes.get(file.relativePath);
+    const previousDigest = previousContextDigest(previous, context.record.id);
+    const canReuse =
+      previousNode !== undefined &&
+      previousNode.contentHash === file.contentHash &&
+      previousNode.projectContextId === context.record.id &&
+      (context.record.digest === undefined ||
+        previousDigest === undefined ||
+        previousDigest === context.record.digest);
+
+    if (canReuse) {
+      nodes.push({
+        ...previousNode,
+        projectContextId: context.record.id,
+      });
+      if (previousNode.parseStatus !== "skipped") {
+        analyzedFiles += 1;
+      }
+      reusedFiles += 1;
+      const reused = previousObservations.get(file.relativePath) ?? [];
+      for (const prior of reused) {
+        const reusedResolution = reusePriorResolution(prior, inventoryIds, context.record.id);
+        const resolution =
+          reusedResolution ??
+          resolveObservation({
+            specifier: prior.specifier,
+            supported: observationSupported(prior, includeDynamicImport),
+            containingFile: file.absolutePath,
+            options: context.options,
+            host,
+            inventoryIds,
+            contextId: context.record.id,
+            cache: resolveCache,
+            stats: resolveStats,
+          });
+        if (reusedResolution !== undefined) {
+          reusedResolutions += 1;
+        }
+        observations.push({
+          ...prior,
+          resolution,
+        });
+      }
+      emitParseProgress();
+      continue;
+    }
+
     if (file.text === undefined) {
       nodes.push({
         id: file.relativePath,
@@ -214,25 +459,26 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     });
 
     const constructs = extractConstructs(sourceFile);
-    for (const construct of constructs) {
-      const resolved = construct.supported
-        ? resolveSpecifier({
-            specifier: construct.specifier,
-            containingFile: file.absolutePath,
-            options: context.options,
-            host,
-          })
-        : undefined;
-      const resolution = classifyResolution({
-        supported: construct.supported,
+    if (constructs.length > MAX_OBSERVATIONS_PER_FILE) {
+      scanTruncations.push(`max-observations:${file.relativePath}`);
+    }
+    for (const construct of constructs.slice(0, MAX_OBSERVATIONS_PER_FILE)) {
+      const resolution = resolveObservation({
         specifier: construct.specifier,
+        supported:
+          construct.supported ||
+          (includeDynamicImport &&
+            construct.syntaxKind === "dynamic-import" &&
+            construct.specifier !== "unknown"),
         containingFile: file.absolutePath,
-        resolved,
+        options: context.options,
         host,
         inventoryIds,
         contextId: context.record.id,
+        cache: resolveCache,
+        stats: resolveStats,
       });
-      const observation: ImportObservation = {
+      observations.push({
         id: `obs:${file.relativePath}:${construct.range.startOffset}`,
         importerId: file.relativePath,
         specifier: construct.specifier,
@@ -240,24 +486,11 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
         edgeClass: construct.edgeClass,
         range: construct.range,
         resolution,
-      };
-      observations.push(observation);
-      if (construct.edgeClass === "type") {
-        counts.typeOnly += 1;
-      }
-      if (construct.edgeClass === "mixed") {
-        counts.mixed += 1;
-      }
-      if (resolution.status === "internal") {
-        counts.internal += 1;
-      } else if (resolution.status === "external") {
-        counts.external += 1;
-      } else if (resolution.status === "unsupported") {
-        counts.unsupported += 1;
-      } else if (resolution.status === "unresolved") {
-        counts.unresolved += 1;
-      }
+        importedNames: construct.importedNames,
+        sideEffect: construct.sideEffect === true ? true : undefined,
+      });
     }
+    emitParseProgress();
   }
 
   const grouped = new Map<string, SemanticEdge>();
@@ -278,6 +511,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     const existing = grouped.get(key);
     if (existing !== undefined) {
       existing.observationIds.push(observation.id);
+      existing.importedNames = mergeImportedNames(existing.importedNames, observation.importedNames);
       continue;
     }
     grouped.set(key, {
@@ -289,6 +523,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
       edgeClass: observation.edgeClass,
       syntaxClass,
       observationIds: [observation.id],
+      importedNames: observation.importedNames,
     });
   }
 
@@ -304,6 +539,7 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     phase: "graph",
     discoveredFiles: inventory.discoveredFiles,
     analyzedFiles,
+    reusedFiles,
   });
 
   const snapshot: AnalysisSnapshot = {
@@ -313,11 +549,11 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
     scanId: options.scanId,
     scope: {
       kind: options.scopeKind ?? "working-tree",
-      repositoryIdentity: repositoryIdentity(root),
+      repositoryIdentity: repositoryIdentityForRoot(root),
       selectedCommit: options.selectedCommit,
       edgePolicy,
       limits: { ...DEFAULT_LIMITS },
-      truncated: inventory.truncations.length > 0,
+      truncated: inventory.truncations.length > 0 || scanTruncations.length > 0,
     },
     projectContexts: contexts.map((context) => context.record),
     nodes,
@@ -328,8 +564,15 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
       analyzedFiles,
       skippedFiles: inventory.skippedFiles,
       parseFailures,
-      constructCounts: counts,
-      truncations: inventory.truncations,
+      constructCounts: countObservations(observations),
+      truncations: [...new Set([...inventory.truncations, ...scanTruncations])].slice(0, 32),
+      reusedFiles,
+      declaredPackages: inventory.declaredPackages,
+      skippedDirectories: inventory.skippedDirectories,
+      workspacePackages: inventory.workspacePackages,
+      elapsedMs: Math.max(0, Date.now() - started),
+      resolverCacheHits: resolveStats.hits,
+      reusedResolutions,
     },
     graphDigest: graphDigestOf(nodes, semanticEdges, edgePolicy),
     contentManifestDigest: contentManifestDigestOf(nodes),

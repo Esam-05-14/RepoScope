@@ -1,5 +1,5 @@
 export const SCHEMA_VERSION = "1.0.0";
-export const ENGINE_VERSION = "0.7.0-r7";
+export const ENGINE_VERSION = "0.9.1-perf";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [
@@ -54,6 +54,19 @@ export {
   syntaxClassOf,
 } from "./identity.js";
 export { validateAnalysisSnapshot, SnapshotValidationError } from "./validate.js";
+export {
+  BRIEF_CLAIMS,
+  buildInvestigationBrief,
+  formatInvestigationBrief,
+  type BriefComponent,
+  type BriefComponentEdge,
+  type BriefDensity,
+  type BriefFormatOptions,
+  type BriefOmission,
+  type ExternalPackageUse,
+  type FileDegree,
+  type InvestigationBrief,
+} from "./brief.js";
 export type {
   CompatibilityStatus,
   EdgeChange,
@@ -81,6 +94,7 @@ export type {
   SourceRange,
   SyntaxClass,
   SyntaxKind,
+  WorkspacePackage,
 } from "./snapshot.js";
 
 import type { RootKind, ScanStatus } from "./status.js";

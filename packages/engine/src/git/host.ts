@@ -93,10 +93,14 @@ export class GitObjectFilesystemHost implements AnalysisFilesystemHost {
   }
 
   private audit(fileName: string, allowed: boolean, reason?: ReadAttempt["reason"]): void {
-    this.attempts.push({ path: fileName, allowed, reason });
-    if (!allowed) {
-      this.deniedReads.push(fileName);
+    if (allowed) {
+      return;
     }
+    if (this.deniedReads.length >= 512) {
+      return;
+    }
+    this.attempts.push({ path: fileName, allowed, reason });
+    this.deniedReads.push(fileName);
   }
 
   private blob(relative: string): GitBlob | undefined {

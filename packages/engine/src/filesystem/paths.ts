@@ -9,11 +9,18 @@ export function toPosixRelative(root: string, absolute: string): string {
   return relative.split(path.sep).join("/");
 }
 
+export function resolvedRootOf(root: string): string {
+  return path.resolve(root);
+}
+
 export function isInsideRoot(root: string, candidate: string): boolean {
+  return isInsideResolvedRoot(path.resolve(root), candidate);
+}
+
+export function isInsideResolvedRoot(resolvedRoot: string, candidate: string): boolean {
   if (isUncPath(candidate) || candidate.includes("\0")) {
     return false;
   }
-  const resolvedRoot = path.resolve(root);
   const resolvedCandidate = path.resolve(candidate);
   const relative = path.relative(resolvedRoot, resolvedCandidate);
   if (relative === "") {

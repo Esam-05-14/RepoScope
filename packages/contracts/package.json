@@ -1,6 +1,7 @@
 {
   "name": "@reposcope/contracts",
   "version": "0.1.0-r1",
+  "license": "MIT",
   "type": "module",
   "exports": {
     ".": {

@@ -5,86 +5,104 @@ import {
   type FileStat,
   type ReadAttempt,
 } from "./host.js";
-import { isInsideRoot, isUncPath } from "./paths.js";
+import { isInsideResolvedRoot, isUncPath } from "./paths.js";
 
 export type { FileStat, ReadAttempt } from "./host.js";
+
+const MAX_DENIED = 512;
+const MAX_FILE_CACHE_BYTES = 32 * 1024 * 1024;
 
 export class ConfinedFilesystemHost implements AnalysisFilesystemHost {
   readonly attempts: ReadAttempt[] = [];
   readonly deniedReads: string[] = [];
+  private readonly resolvedRoot: string;
+  private readonly confineCache = new Map<string, string | null>();
+  private readonly statCache = new Map<string, FileStat | null>();
+  private readonly dirCache = new Map<string, string[]>();
+  private readonly fileCache = new Map<string, Buffer | null>();
+  private fileCacheBytes = 0;
 
-  constructor(readonly root: string) {}
+  constructor(readonly root: string) {
+    this.resolvedRoot = path.resolve(root);
+  }
 
   confine(candidate: string): string | null {
     if (candidate.includes("\0") || isUncPath(candidate)) {
       return null;
     }
-    const resolved = path.resolve(this.root, candidate);
-    if (!isInsideRoot(this.root, resolved)) {
-      return null;
+    const resolved = path.resolve(this.resolvedRoot, candidate);
+    const cached = this.confineCache.get(resolved);
+    if (cached !== undefined) {
+      return cached;
     }
-    return resolved;
+    const allowed = isInsideResolvedRoot(this.resolvedRoot, resolved) ? resolved : null;
+    this.confineCache.set(resolved, allowed);
+    return allowed;
   }
 
-  private audit(fileName: string, allowed: boolean, reason?: ReadAttempt["reason"]): void {
-    this.attempts.push({ path: fileName, allowed, reason });
-    if (!allowed) {
-      this.deniedReads.push(fileName);
+  private auditDenied(fileName: string, reason: ReadAttempt["reason"]): void {
+    if (this.deniedReads.length >= MAX_DENIED) {
+      return;
+    }
+    this.attempts.push({ path: fileName, allowed: false, reason });
+    this.deniedReads.push(fileName);
+  }
+
+  private statCached(confined: string): FileStat | null {
+    const cached = this.statCache.get(confined);
+    if (cached !== undefined) {
+      return cached;
+    }
+    try {
+      const stat = lstatSync(confined);
+      const value: FileStat = {
+        isFile: stat.isFile(),
+        isDirectory: stat.isDirectory(),
+        isSymbolicLink: stat.isSymbolicLink(),
+      };
+      this.statCache.set(confined, value);
+      return value;
+    } catch {
+      this.statCache.set(confined, null);
+      return null;
     }
   }
 
   fileExists(fileName: string): boolean {
     const confined = this.confine(fileName);
     if (confined === null) {
-      this.audit(fileName, false, "outside-root");
+      this.auditDenied(fileName, "outside-root");
       return false;
     }
-    try {
-      const stat = lstatSync(confined);
-      if (stat.isSymbolicLink()) {
-        this.audit(confined, false, "symlink");
-        return false;
-      }
-      return stat.isFile();
-    } catch {
+    const stat = this.statCached(confined);
+    if (stat === null) {
       return false;
     }
+    if (stat.isSymbolicLink) {
+      this.auditDenied(confined, "symlink");
+      return false;
+    }
+    return stat.isFile;
   }
 
   directoryExists(directoryName: string): boolean {
     const confined = this.confine(directoryName);
     if (confined === null) {
-      this.audit(directoryName, false, "outside-root");
+      this.auditDenied(directoryName, "outside-root");
       return false;
     }
-    try {
-      const stat = lstatSync(confined);
-      return stat.isDirectory() && !stat.isSymbolicLink();
-    } catch {
-      return false;
-    }
+    const stat = this.statCached(confined);
+    return stat !== null && stat.isDirectory && !stat.isSymbolicLink;
   }
 
   readFile(fileName: string): string | undefined {
-    const confined = this.confine(fileName);
-    if (confined === null) {
-      this.audit(fileName, false, "outside-root");
+    const bytes = this.readFileBytes(fileName);
+    if (bytes === undefined) {
       return undefined;
     }
     try {
-      const stat = lstatSync(confined);
-      if (stat.isSymbolicLink()) {
-        this.audit(confined, false, "symlink");
-        return undefined;
-      }
-      if (!stat.isFile()) {
-        this.audit(confined, false, "not-a-file");
-        return undefined;
-      }
-      this.audit(confined, true);
-      return readFileSync(confined, "utf8");
+      return bytes.toString("utf8");
     } catch {
-      this.audit(confined, false, "missing");
       return undefined;
     }
   }
@@ -92,19 +110,37 @@ export class ConfinedFilesystemHost implements AnalysisFilesystemHost {
   readFileBytes(fileName: string): Buffer | undefined {
     const confined = this.confine(fileName);
     if (confined === null) {
-      this.audit(fileName, false, "outside-root");
+      this.auditDenied(fileName, "outside-root");
+      return undefined;
+    }
+    const cached = this.fileCache.get(confined);
+    if (cached !== undefined) {
+      return cached ?? undefined;
+    }
+    const stat = this.statCached(confined);
+    if (stat === null) {
+      this.fileCache.set(confined, null);
+      return undefined;
+    }
+    if (stat.isSymbolicLink) {
+      this.auditDenied(confined, "symlink");
+      this.fileCache.set(confined, null);
+      return undefined;
+    }
+    if (!stat.isFile) {
+      this.auditDenied(confined, "not-a-file");
+      this.fileCache.set(confined, null);
       return undefined;
     }
     try {
-      const stat = lstatSync(confined);
-      if (stat.isSymbolicLink() || !stat.isFile()) {
-        this.audit(confined, false, stat.isSymbolicLink() ? "symlink" : "not-a-file");
-        return undefined;
+      const bytes = readFileSync(confined);
+      if (this.fileCacheBytes + bytes.byteLength <= MAX_FILE_CACHE_BYTES) {
+        this.fileCache.set(confined, bytes);
+        this.fileCacheBytes += bytes.byteLength;
       }
-      this.audit(confined, true);
-      return readFileSync(confined);
+      return bytes;
     } catch {
-      this.audit(confined, false, "missing");
+      this.fileCache.set(confined, null);
       return undefined;
     }
   }
@@ -112,17 +148,27 @@ export class ConfinedFilesystemHost implements AnalysisFilesystemHost {
   readDirectory(directoryName: string): string[] {
     const confined = this.confine(directoryName);
     if (confined === null) {
-      this.audit(directoryName, false, "outside-root");
+      this.auditDenied(directoryName, "outside-root");
       return [];
     }
+    const cached = this.dirCache.get(confined);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const stat = this.statCached(confined);
+    if (stat === null || !stat.isDirectory || stat.isSymbolicLink) {
+      const empty: string[] = [];
+      this.dirCache.set(confined, empty);
+      return empty;
+    }
     try {
-      const stat = lstatSync(confined);
-      if (!stat.isDirectory() || stat.isSymbolicLink()) {
-        return [];
-      }
-      return readdirSync(confined);
+      const names = readdirSync(confined);
+      this.dirCache.set(confined, names);
+      return names;
     } catch {
-      return [];
+      const empty: string[] = [];
+      this.dirCache.set(confined, empty);
+      return empty;
     }
   }
 
@@ -138,18 +184,9 @@ export class ConfinedFilesystemHost implements AnalysisFilesystemHost {
   stat(fileName: string): FileStat | undefined {
     const confined = this.confine(fileName);
     if (confined === null) {
-      this.audit(fileName, false, "outside-root");
+      this.auditDenied(fileName, "outside-root");
       return undefined;
     }
-    try {
-      const stat = lstatSync(confined);
-      return {
-        isFile: stat.isFile(),
-        isDirectory: stat.isDirectory(),
-        isSymbolicLink: stat.isSymbolicLink(),
-      };
-    } catch {
-      return undefined;
-    }
+    return this.statCached(confined) ?? undefined;
   }
 }

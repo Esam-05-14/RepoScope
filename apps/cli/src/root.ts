@@ -1,6 +1,11 @@
 import { existsSync, lstatSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  cloneGitHubRepository,
+  looksLikeGitHubInput,
+  parseGitHubRepoInput,
+} from "@reposcope/engine";
 
 const DEMO_MARKER = path.join("fixtures", "esm-baseline", "src", "main.ts");
 
@@ -72,4 +77,24 @@ export function bundledFixtures(startDir: string): Record<string, string> {
 
 export function defaultStartDir(): string {
   return path.dirname(fileURLToPath(import.meta.url));
+}
+
+export async function resolveCliTarget(
+  input: string | undefined,
+  commit?: string,
+): Promise<{ canonicalRoot: string; label: string; kind: "cli" | "github" }> {
+  if (input === undefined || input === "") {
+    const canonicalRoot = canonicalizeDirectory(process.cwd());
+    return { canonicalRoot, label: path.basename(canonicalRoot), kind: "cli" };
+  }
+  if (existsSync(input)) {
+    const canonicalRoot = canonicalizeDirectory(input);
+    return { canonicalRoot, label: path.basename(canonicalRoot), kind: "cli" };
+  }
+  if (!looksLikeGitHubInput(input)) {
+    throw new Error("selected root does not exist");
+  }
+  const spec = parseGitHubRepoInput(input);
+  const cloned = await cloneGitHubRepository({ spec, ref: commit ?? spec.ref });
+  return { canonicalRoot: cloned.root, label: cloned.label, kind: "github" };
 }

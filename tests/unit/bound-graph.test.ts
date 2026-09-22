@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AnalysisSnapshot } from "@reposcope/contracts";
-import { boundGraph, GRAPH_NODE_CAP } from "../../apps/web/src/lib/bound-graph.ts";
+import { boundGraph, boundNeighborhood, GRAPH_NODE_CAP } from "../../apps/web/src/lib/bound-graph.ts";
 
 function snapshotWith(count: number): AnalysisSnapshot {
   const nodes = Array.from({ length: count }, (_, index) => ({
@@ -60,5 +60,33 @@ describe("bounded graph", () => {
     const large = boundGraph(snapshotWith(GRAPH_NODE_CAP + 40), "f0.ts");
     expect(large.truncated).toBe(true);
     expect(large.nodeIds.length).toBeLessThanOrEqual(GRAPH_NODE_CAP);
+    const expanded = boundGraph(snapshotWith(GRAPH_NODE_CAP + 40), "f0.ts", {
+      nodeCap: GRAPH_NODE_CAP + 40,
+      edgeCap: 2000,
+    });
+    expect(expanded.truncated).toBe(false);
+    expect(expanded.nodeIds).toHaveLength(GRAPH_NODE_CAP + 40);
+  });
+
+  it("omits type-only edges under the default value-and-mixed policy", () => {
+    const snapshot = snapshotWith(2);
+    snapshot.semanticEdges.push({
+      key: "f0.ts>|internal:f1.ts|static-import|type",
+      importerId: "f0.ts",
+      targetId: "f1.ts",
+      edgeClass: "type",
+      syntaxClass: "static-import",
+      observationIds: ["obs:type"],
+    });
+    const bounded = boundGraph(snapshot);
+    expect(bounded.edges.every((edge) => edge.edgeClass !== "type")).toBe(true);
+    expect(bounded.edges).toHaveLength(1);
+  });
+
+  it("keeps a hop-limited neighborhood around the focus", () => {
+    const snapshot = snapshotWith(6);
+    const nearby = boundNeighborhood(snapshot, "f2.ts", { hops: 1 });
+    expect(nearby.nodeIds.sort()).toEqual(["f1.ts", "f2.ts", "f3.ts"]);
+    expect(nearby.truncated).toBe(false);
   });
 });

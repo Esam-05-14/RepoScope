@@ -1,4 +1,27 @@
+const STORAGE_KEY = "reposcope.session";
+
 let memoryToken: string | null = null;
+
+function persistToken(token: string | null): void {
+  memoryToken = token;
+  try {
+    if (token === null) {
+      globalThis.sessionStorage?.removeItem(STORAGE_KEY);
+    } else {
+      globalThis.sessionStorage?.setItem(STORAGE_KEY, token);
+    }
+  } catch {
+    // Node tests and blocked storage.
+  }
+}
+
+function restoreStored(): string | null {
+  try {
+    return globalThis.sessionStorage?.getItem(STORAGE_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 export function takeTokenFromLocation(
   location: Pick<Location, "hash" | "pathname" | "search">,
@@ -11,9 +34,11 @@ export function takeTokenFromLocation(
     : location.hash;
   const params = new URLSearchParams(hash);
   const token = params.get("token");
-  if (token !== null && token.length > 0) {
-    memoryToken = token;
+  if (token !== undefined && token !== null && token.length > 0) {
+    persistToken(token);
     replaceUrl(`${location.pathname}${location.search}`);
+  } else if (memoryToken === null) {
+    persistToken(restoreStored());
   }
   return memoryToken;
 }

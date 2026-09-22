@@ -1,6 +1,21 @@
-export type Route = "/" | "/explore" | "/coverage" | "/compare" | "/settings";
+export type Route =
+  | "/"
+  | "/explore"
+  | "/coverage"
+  | "/compare"
+  | "/boundaries"
+  | "/brief"
+  | "/settings";
 
-const ROUTES = new Set<Route>(["/", "/explore", "/coverage", "/compare", "/settings"]);
+const ROUTES = new Set<Route>([
+  "/",
+  "/explore",
+  "/coverage",
+  "/compare",
+  "/boundaries",
+  "/brief",
+  "/settings",
+]);
 
 export function currentRoute(): Route {
   const path = window.location.pathname;
@@ -11,8 +26,9 @@ export function currentRoute(): Route {
 }
 
 export function navigate(route: Route): void {
-  if (window.location.pathname !== route) {
-    history.pushState(null, "", route);
+  const next = `${route}${window.location.search}${window.location.hash}`;
+  if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== next) {
+    history.pushState(null, "", next);
   }
   window.dispatchEvent(new Event("reposcope:route"));
 }

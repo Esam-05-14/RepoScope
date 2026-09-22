@@ -1,19 +1,34 @@
 # Contributing
 
-RepoScope is built in ordered waves. See `docs/waves.md` and `prompts/`.
+RepoScope is a local, deterministic TypeScript/JavaScript analyzer. It is not an AI wrapper.
 
-## Current expectation
+## Setup
 
-R0 freezes contracts and versions. Do not add analyzer, server, or UI features until R1 starts.
+- Node.js **24.21.0** and npm **11.19.0**
+- `npm ci`
+- `npm run build`
+- `npm run verify`
+
+`npm run demo` opens the loopback UI on `fixtures/esm-baseline`.
+
+Browser tests use Playwright Chromium. Install it with `npx playwright install chromium`. On Windows, `PW_CHANNEL=msedge npx playwright test` can use an installed Microsoft Edge instead.
 
 ## Rules
 
-1. One wave at a time. A failed security or data-correctness gate blocks the next wave.
-2. npm workspaces and a single committed lockfile. Do not introduce a second package manager.
-3. Tests compare sets and semantics, not graph-layout coordinates.
-4. Public fixtures only in `reports/` and CI.
-5. Do not commit secrets, inspected private source, or absolute machine paths.
+1. Keep one npm lockfile. Do not add pnpm or yarn.
+2. Packages must not import application code. `contracts` has no React, Fastify, filesystem, or TypeScript compiler dependency.
+3. Pin `typescript@6.0.3` as the parser. Do not use TypeScript 7 as the parser.
+4. Bind the API to `127.0.0.1`. Routes accept opaque ids, never filesystem paths from the browser.
+5. Tests compare sets and semantics, not graph-layout coordinates.
+6. Public fixtures only in `reports/` and CI. Do not commit private repository snapshots.
+7. Product language: observed dependency, potential investigation scope, declared value import, not resolved under this configuration.
 
-## After a wave
+## Wave discipline
 
-Write `reports/rN-stop-gate.md` with files changed, commands actually run, results, remaining limitations, and whether the gate passed. Do not mark a test green if it was not executed.
+See `docs/waves.md` and `prompts/`. A failed security or data-correctness gate blocks the next change set. Do not fake engine output with fixture JSON in a demo.
+
+## Pull requests
+
+- Run `npm run verify` before you open a PR.
+- Prefer small, reviewable changes.
+- Update `CHANGELOG.md` for user-visible behavior.

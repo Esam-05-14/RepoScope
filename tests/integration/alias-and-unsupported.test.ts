@@ -47,7 +47,7 @@ describe("S2 compiler resolution", () => {
 });
 
 describe("unsupported constructs", () => {
-  it("records require, dynamic import, and import-type as classified omissions", () => {
+  it("records dynamic import and import-type as classified omissions", () => {
     const snapshot = scanRepository({
       root: path.join(root, "fixtures", "unsupported-constructs"),
     });
@@ -55,12 +55,12 @@ describe("unsupported constructs", () => {
     expect(kinds).toContain("require");
     expect(kinds).toContain("dynamic-import");
     expect(kinds).toContain("other-unsupported");
+    const requireObservation = snapshot.observations.find((item) => item.syntaxKind === "require");
+    expect(requireObservation?.resolution.status).toBe("unresolved");
     expect(
-      snapshot.observations.every(
-        (observation) =>
-          observation.resolution.status === "unsupported" ||
-          observation.resolution.status === "unresolved",
-      ),
+      snapshot.observations
+        .filter((observation) => observation.syntaxKind !== "require")
+        .every((observation) => observation.resolution.status === "unsupported"),
     ).toBe(true);
     expect(snapshot.coverage.constructCounts.unsupported).toBeGreaterThan(0);
   });

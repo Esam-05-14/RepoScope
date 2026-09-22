@@ -1,0 +1,10 @@
+{
+  "name": "declared-packages-fixture",
+  "private": true,
+  "dependencies": {
+    "react": "19.3.0"
+  },
+  "devDependencies": {
+    "vitest": "5.0.1"
+  }
+}

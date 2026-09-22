@@ -11,6 +11,7 @@ export default tseslint.config(
       "reports/**",
       "apps/web/dist/**",
       "tests/unit/cancel-worker.mjs",
+      "extensions/**",
     ],
   },
   eslint.configs.recommended,

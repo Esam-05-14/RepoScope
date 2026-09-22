@@ -104,7 +104,12 @@
         "id": { "type": "string", "minLength": 1, "maxLength": 128 },
         "kind": { "type": "string", "enum": ["tsconfig", "jsconfig", "inferred"] },
         "configPath": { "anyOf": [{ "$ref": "#/$defs/RelativePath" }, { "type": "null" }] },
-        "digest": { "$ref": "#/$defs/Sha256Digest" }
+        "digest": { "$ref": "#/$defs/Sha256Digest" },
+        "pathMappings": {
+          "type": "array",
+          "maxItems": 32,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
       }
     },
     "FileNode": {
@@ -162,7 +167,10 @@
             "ENCODING_UNSUPPORTED",
             "PARSE_FAILED",
             "LIMIT_HIT",
-            "SYMLINK_SKIPPED"
+            "SYMLINK_SKIPPED",
+            "ASSET_UNSUPPORTED",
+            "PROTOCOL_UNSUPPORTED",
+            "NODE_BUILTIN"
           ]
         }
       }
@@ -195,12 +203,19 @@
             "dynamic-import",
             "require",
             "import-equals",
+            "triple-slash-path",
             "other-unsupported"
           ]
         },
         "edgeClass": { "type": "string", "enum": ["value", "type", "mixed"] },
         "range": { "$ref": "#/$defs/SourceRange" },
-        "resolution": { "$ref": "#/$defs/Resolution" }
+        "resolution": { "$ref": "#/$defs/Resolution" },
+        "importedNames": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "sideEffect": { "type": "boolean" }
       }
     },
     "SemanticEdge": {
@@ -219,6 +234,11 @@
           "minItems": 1,
           "maxItems": 64,
           "items": { "type": "string" }
+        },
+        "importedNames": {
+          "type": "array",
+          "maxItems": 64,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
         }
       }
     },
@@ -243,7 +263,31 @@
           "type": "array",
           "maxItems": 32,
           "items": { "type": "string" }
-        }
+        },
+        "reusedFiles": { "type": "integer", "minimum": 0 },
+        "declaredPackages": {
+          "type": "array",
+          "maxItems": 512,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "skippedDirectories": { "type": "integer", "minimum": 0 },
+        "workspacePackages": {
+          "type": "array",
+          "maxItems": 256,
+          "items": { "$ref": "#/$defs/WorkspacePackage" }
+        },
+        "elapsedMs": { "type": "integer", "minimum": 0 },
+        "resolverCacheHits": { "type": "integer", "minimum": 0 },
+        "reusedResolutions": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "WorkspacePackage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "directory"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "directory": { "$ref": "#/$defs/RelativePath" }
       }
     },
     "ConstructCounts": {

@@ -3,7 +3,11 @@ import {
   compareSnapshots,
   exportSnapshot,
   importSnapshot,
+  fileRelationsFromSnapshot,
   impactFromSnapshot,
+  investigationBriefMarkdown,
+  relationsFromSnapshot,
+  snapshotLabel,
 } from "@reposcope/engine";
 import { SnapshotValidationError } from "@reposcope/contracts";
 import { sendError } from "../errors.js";
@@ -13,6 +17,17 @@ export function registerSnapshotRoutes(
   app: FastifyInstance,
   store: AnalysisStore,
 ): void {
+  app.get("/api/snapshots", async () => {
+    return {
+      items: [...store.snapshots.values()].map((stored) => ({
+        id: stored.id,
+        label: stored.label ?? snapshotLabel(stored.snapshot),
+        graphDigest: stored.snapshot.graphDigest,
+        selectedCommit: stored.snapshot.scope.selectedCommit,
+      })),
+    };
+  });
+
   app.get("/api/snapshots/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const stored = store.snapshots.get(id);
@@ -21,6 +36,28 @@ export function registerSnapshotRoutes(
       return reply;
     }
     return exportSnapshot(stored.snapshot);
+  });
+
+  app.get("/api/snapshots/:id/brief", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const stored = store.snapshots.get(id);
+    if (stored === undefined) {
+      sendError(reply, 404, "SCAN_NOT_FOUND", "Snapshot not found.");
+      return reply;
+    }
+    const density =
+      (request.query as { density?: string }).density === "full" ? "full" : "compact";
+    const { brief, markdown } = investigationBriefMarkdown(stored.snapshot, density);
+    const format = (request.query as { format?: string }).format;
+    if (format === "md" || format === "markdown") {
+      void reply.header("content-type", "text/markdown; charset=utf-8");
+      void reply.header(
+        "content-disposition",
+        `attachment; filename="reposcope-${id.slice(0, 12)}-brief.md"`,
+      );
+      return reply.send(markdown);
+    }
+    return { brief, markdown };
   });
 
   app.get("/api/snapshots/:id/export", async (request, reply) => {
@@ -49,6 +86,7 @@ export function registerSnapshotRoutes(
         id,
         snapshot,
         readRoot: null,
+        label: snapshotLabel(snapshot),
       });
       return reply.status(201).send({ id });
     } catch (error) {
@@ -91,6 +129,26 @@ export function registerSnapshotRoutes(
       truncationReasons: [...impact.truncationReasons],
       shortestObservedPathFrom,
     };
+  });
+
+  app.get("/api/snapshots/:id/relations", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const stored = store.snapshots.get(id);
+    if (stored === undefined) {
+      sendError(reply, 404, "SCAN_NOT_FOUND", "Snapshot not found.");
+      return reply;
+    }
+    const relations = relationsFromSnapshot(stored.snapshot);
+    const node = (request.query as { node?: string }).node;
+    const file =
+      node !== undefined && node !== ""
+        ? fileRelationsFromSnapshot(stored.snapshot, node)
+        : undefined;
+    if (node !== undefined && node !== "" && file === undefined) {
+      sendError(reply, 404, "SCAN_NOT_FOUND", "Node is not in this snapshot.");
+      return reply;
+    }
+    return { relations, file };
   });
 
   app.post("/api/compare", async (request, reply) => {

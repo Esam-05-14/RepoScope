@@ -7,6 +7,7 @@ export interface StoredSnapshot {
   snapshot: AnalysisSnapshot;
   readRoot: string | null;
   commit?: string;
+  label?: string;
 }
 
 export interface ScanRecord {
@@ -16,6 +17,7 @@ export interface ScanRecord {
   phase?: ScanProgress["phase"];
   discoveredFiles?: number;
   analyzedFiles?: number;
+  reusedFiles?: number;
   message?: string;
   canceled: boolean;
 }

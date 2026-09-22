@@ -8,9 +8,9 @@
 
 ## Supported initial syntax
 
-Parse `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` as applicable. Derive P0 graph edges only from static ESM imports and export-from. Distinguish type-only imports and re-exports. CommonJS may be parsed but is unsupported for extraction.
+Parse `.ts`, `.tsx`, `.js`, `.jsx`, `.mts`, `.cts`, `.mjs`, `.cjs` as applicable. Derive P0 graph edges only from static ESM imports and export-from. Distinguish type-only imports and re-exports. P2 treats a CommonJS `require("…")` with a string specifier as a supported observed dependency. Dynamic `require` remains unsupported.
 
-Record dynamic `import()`, `require`, import-equals, import-type expressions, framework aliases, CSS/assets, declaration-only destinations, and unusual resolver constructs as classified omissions.
+Record dynamic `import()`, import-equals, import-type expressions, framework aliases, CSS/assets (`ASSET_UNSUPPORTED`), declaration-only destinations, and unusual resolver constructs as classified omissions. String `import()` may be opted in as a declared specifier; it is still not runtime proof.
 
 ## Exclusions
 

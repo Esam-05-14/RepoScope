@@ -1,0 +1,21 @@
+{
+  "name": "reposcope",
+  "displayName": "RepoScope",
+  "description": "Reveal a RepoScope snapshot file in the current workspace. Does not analyze or execute the project.",
+  "version": "0.1.0",
+  "publisher": "reposcope",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:reposcope.revealFile"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "reposcope.revealFile",
+        "title": "RepoScope: Reveal File"
+      }
+    ]
+  }
+}

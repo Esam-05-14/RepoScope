@@ -12,6 +12,7 @@ import { toPosixRelative } from "./filesystem/paths.js";
 export interface BoundContext {
   record: ProjectContext;
   options: ParsedProjectConfig["options"];
+  fileNames: string[];
 }
 
 function configKind(fileName: string): "tsconfig" | "jsconfig" {
@@ -43,16 +44,38 @@ export function loadProjectContexts(
   configFiles: readonly string[],
 ): BoundContext[] {
   const loaded: BoundContext[] = [];
-  for (const configPath of configFiles) {
+  const seen = new Set<string>();
+  const queue = [...configFiles];
+  while (queue.length > 0) {
+    const configPath = queue.shift();
+    if (configPath === undefined) {
+      break;
+    }
+    const key = path.resolve(configPath);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    if (host.confine(configPath) === null) {
+      continue;
+    }
     if (extendsOutside(host, configPath)) {
       continue;
+    }
+    const configBytes = host.readFileBytes(configPath);
+    if (configBytes !== undefined && configBytes.byteLength > 256 * 1024) {
+      continue;
+    }
+    if (loaded.length >= 64) {
+      break;
     }
     const parsed = parseProjectConfig(configPath, host);
     if (parsed.extendsOutsideRoot) {
       continue;
     }
     const relative = toPosixRelative(host.root, configPath);
-    const bytes = host.readFileBytes(configPath);
+    const bytes = configBytes ?? host.readFileBytes(configPath);
+    const pathMappings = pathMappingsFromOptions(parsed.options);
     loaded.push({
       record: {
         id: `ctx:${relative}`,
@@ -62,11 +85,35 @@ export function loadProjectContexts(
           bytes === undefined
             ? undefined
             : `sha256:${createHash("sha256").update(bytes).digest("hex")}`,
+        pathMappings,
       },
       options: parsed.options,
+      fileNames: parsed.fileNames,
     });
+    for (const reference of parsed.references) {
+      if (host.confine(reference) !== null) {
+        queue.push(reference);
+      }
+    }
   }
   return loaded;
+}
+
+function pathMappingsFromOptions(options: { paths?: Record<string, string[] | undefined> }): string[] | undefined {
+  if (options.paths === undefined) {
+    return undefined;
+  }
+  const rows: string[] = [];
+  for (const [alias, targets] of Object.entries(options.paths)) {
+    const dest = (targets ?? [])
+      .map((target) => target.replaceAll("\\", "/"))
+      .filter((target) => !/^[A-Za-z]:/.test(target) && !target.startsWith("/"))
+      .join(", ");
+    if (dest !== "") {
+      rows.push(`${alias} -> ${dest}`);
+    }
+  }
+  return rows.length === 0 ? undefined : rows.slice(0, 32);
 }
 
 export function inferredContext(): BoundContext {
@@ -77,6 +124,59 @@ export function inferredContext(): BoundContext {
       configPath: null,
     },
     options: inferredCompilerOptions(),
+    fileNames: [],
+  };
+}
+
+export function createContextSelector(
+  root: string,
+  contexts: readonly BoundContext[],
+  inferred: BoundContext,
+): (fileAbsolute: string) => BoundContext {
+  const byFile = new Map<string, BoundContext>();
+  for (const context of contexts) {
+    const specificity = context.record.configPath?.length ?? 0;
+    for (const fileName of context.fileNames) {
+      const resolved = path.resolve(fileName);
+      const existing = byFile.get(resolved);
+      if (existing === undefined || specificity > (existing.record.configPath?.length ?? 0)) {
+        byFile.set(resolved, context);
+      }
+    }
+  }
+  const byDir = new Map<string, BoundContext>();
+  for (const context of contexts) {
+    if (context.record.configPath === null) {
+      continue;
+    }
+    const configDir = path.resolve(root, path.dirname(context.record.configPath));
+    const existing = byDir.get(configDir);
+    if (existing === undefined || (context.record.configPath.length > (existing.record.configPath?.length ?? 0))) {
+      byDir.set(configDir, context);
+    }
+  }
+  const resolvedRoot = path.resolve(root);
+  return (fileAbsolute: string): BoundContext => {
+    const resolved = path.resolve(fileAbsolute);
+    const listed = byFile.get(resolved);
+    if (listed !== undefined) {
+      return listed;
+    }
+    let directory = path.dirname(resolved);
+    for (;;) {
+      const match = byDir.get(directory);
+      if (match !== undefined) {
+        return match;
+      }
+      if (directory === resolvedRoot) {
+        return inferred;
+      }
+      const parent = path.dirname(directory);
+      if (parent === directory) {
+        return inferred;
+      }
+      directory = parent;
+    }
   };
 }
 
@@ -86,21 +186,5 @@ export function selectContext(
   contexts: readonly BoundContext[],
   inferred: BoundContext,
 ): BoundContext {
-  let directory = path.dirname(fileAbsolute);
-  for (;;) {
-    const match = contexts.find((context) => {
-      if (context.record.configPath === null) {
-        return false;
-      }
-      const configDir = path.dirname(path.resolve(root, context.record.configPath));
-      return path.resolve(configDir) === path.resolve(directory);
-    });
-    if (match !== undefined) {
-      return match;
-    }
-    if (directory === root || path.dirname(directory) === directory) {
-      return inferred;
-    }
-    directory = path.dirname(directory);
-  }
+  return createContextSelector(root, contexts, inferred)(fileAbsolute);
 }

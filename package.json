@@ -1,8 +1,13 @@
 {
   "name": "reposcope",
   "private": true,
-  "version": "0.1.0-r1",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Local, read-only TypeScript and JavaScript architecture explorer",
   "type": "module",
+  "bin": {
+    "reposcope": "apps/cli/dist/main.js"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -19,6 +24,9 @@
     "test:e2e": "playwright test",
     "lint": "eslint .",
     "demo": "node apps/cli/dist/main.js inspect --demo",
+    "inspect": "node apps/cli/dist/main.js inspect",
+    "scan": "node apps/cli/dist/main.js scan",
+    "compare": "node apps/cli/dist/main.js compare",
     "verify": "node scripts/verify.mjs"
   },
   "devDependencies": {

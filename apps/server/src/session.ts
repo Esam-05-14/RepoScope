@@ -6,8 +6,8 @@ import {
 
 export interface Session {
   readonly token: string;
-  readonly rootKind: RootKind;
-  readonly rootLabel: string;
+  rootKind: RootKind;
+  rootLabel: string;
   readonly canonicalRoot: string | null;
   readonly fixtureCatalog: Readonly<Record<string, string>>;
   scanStatus: ScanStatus;

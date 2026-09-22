@@ -7,6 +7,7 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 - Regular files inside the canonical root after `realpath`-style resolution.
 - `tsconfig.json` / `jsconfig.json` inside that root, parsed through the TypeScript config API on the confined host.
 - Git object reads (P1 only) from the selected commit via `execFile` argument arrays, never shell strings.
+- Optional `https://github.com/{owner}/{repo}` locators. The clone URL is reconstructed; the destination is application-owned cache (`~/.reposcope/clones` or `REPOSCOPE_CACHE`), not a browser-supplied filesystem path.
 
 ## Denied by default
 
@@ -40,4 +41,4 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 
 ## Writes
 
-Nothing is written into the inspected repository by default. Scan state and exports live in application-owned storage or an explicit user destination.
+Nothing is written into the inspected repository by default. Scan state and exports live in application-owned storage or an explicit user destination. Source-free snapshots under the application store are capped at 20 per repository identity. GitHub clones under the application cache are pruned to the eight most recent directories.

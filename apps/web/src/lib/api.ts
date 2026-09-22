@@ -60,6 +60,43 @@ export function fetchSnapshot(id: string): Promise<AnalysisSnapshot> {
   return request(`/api/snapshots/${id}`);
 }
 
+export function fetchSnapshotCatalog(): Promise<{
+  items: { id: string; label: string; graphDigest: string; selectedCommit?: string }[];
+}> {
+  return request("/api/snapshots");
+}
+
+export function evaluateBoundaries(
+  snapshotId: string,
+  policy: unknown,
+): Promise<{
+  violations: {
+    ruleId: string;
+    observationId: string;
+    importerId: string;
+    targetId: string;
+    fromGroup: string;
+    toGroup: string;
+  }[];
+}> {
+  return request("/api/boundaries/evaluate", {
+    method: "POST",
+    body: JSON.stringify({ snapshotId, policy }),
+  });
+}
+
+export function openInEditor(body: {
+  snapshotId: string;
+  nodeId: string;
+  line?: number;
+  column?: number;
+}): Promise<{ ok: true }> {
+  return request("/api/editor/open", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function fetchImpact(
   snapshotId: string,
   node: string,
@@ -129,13 +166,39 @@ export function clearAnalysis(): Promise<{ ok: true }> {
   return request("/api/session/analysis", { method: "DELETE" });
 }
 
+export function clearCloneCache(): Promise<{ ok: true; removed: number }> {
+  return request("/api/session/cache", { method: "DELETE" });
+}
+
+export async function downloadSnapshot(id: string): Promise<void> {
+  const token = getSessionToken();
+  if (token === null) {
+    throw new ApiRequestError(401, "UNAUTHENTICATED", "A valid session token is required.");
+  }
+  const response = await fetch(`/api/snapshots/${id}/export`, {
+    headers: { authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) {
+    throw new ApiRequestError(response.status, "SCAN_FAILED", "Snapshot export failed.");
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `reposcope-${id.slice(0, 12)}.json`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export async function waitForScan(
   id: string,
-  timeoutMs = 20_000,
+  timeoutMs = 180_000,
+  onProgress?: (row: ScanProgressResponse) => void,
 ): Promise<ScanProgressResponse> {
   const started = Date.now();
   for (;;) {
     const row = await fetchScan(id);
+    onProgress?.(row);
     if (
       row.status === "completed" ||
       row.status === "canceled" ||

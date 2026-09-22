@@ -12,6 +12,8 @@ const PUBLIC_GET_PATHS = new Set([
   "/coverage",
   "/compare",
   "/settings",
+  "/boundaries",
+  "/brief",
   "/favicon.ico",
 ]);
 

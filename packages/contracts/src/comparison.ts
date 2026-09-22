@@ -53,5 +53,6 @@ export interface ScanProgressResponse {
   phase?: "inventory" | "parse" | "graph";
   discoveredFiles?: number;
   analyzedFiles?: number;
+  reusedFiles?: number;
   message?: string;
 }
