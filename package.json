@@ -1,7 +1,7 @@
 {
   "name": "reposcope",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "license": "MIT",
   "description": "Local, read-only TypeScript, JavaScript, Python, Java, and Kotlin architecture explorer",
   "type": "module",
@@ -33,9 +33,11 @@
     "@eslint/js": "9.36.0",
     "@playwright/test": "1.63.0",
     "@types/node": "24.13.3",
+    "esbuild": "0.28.2",
     "eslint": "9.36.0",
     "globals": "16.4.0",
     "playwright": "1.63.0",
+    "postject": "1.0.0-alpha.6",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.0",
     "vitest": "5.0.1"

@@ -37,3 +37,7 @@ ADR-R08 through ADR-R11 accept first-party Python and Java adapters, one UTF-16 
 ## L1–L7 (22 September 2026)
 
 `engineVersion` is `0.10.0-lang`. TypeScript-only snapshots still write schema `1.0.0` and `parserVersion` `typescript@6.0.3`. Snapshots that contain a `py`, `java`, or `kt` node write schema `1.1.0`. ADR-R12 pins bounded import scanners instead of starting an interpreter. ADR-R13 accepts a restricted Gradle `include` scan and a Kotlin import extractor. Gradle, Maven, and project Python are not executed.
+
+## 0.11.0 (23 September 2026)
+
+Product version and `engineVersion` are `0.11.0`. Parser pins are `py-import@2`, `java-import@2`, and `kt-import@2`. Gradle `srcDir` strings, Java imports of Kotlin files, literal `Class.forName` / `importlib.import_module`, Spring qualified class literals, and notebook code cells resolve inside the selected root. Gradle is still not executed. `@ComponentScan` package names stay wildcard omissions.

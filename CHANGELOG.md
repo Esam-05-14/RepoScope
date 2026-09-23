@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.11.0 — 2026-09-23
+
+- Gradle `srcDir` / `srcDirs` string literals are extra source roots. A path that leaves the selected directory is ignored. Gradle is still not executed.
+- A Java or Kotlin named import, a string `Class.forName`, and a Spring `@Import` / `exclude` class literal may resolve to a `.java` or `.kt` file. `@ComponentScan` package names stay wildcard omissions.
+- A same-line `importlib.import_module("pkg.mod")` or `__import__("pkg.mod")` resolves like an import. A non-literal call stays unsupported.
+- Jupyter `.ipynb` code cells are read as Python imports. Markdown cells are not. `.ipynb_checkpoints` is skipped. Invalid notebook JSON is `notebook-rejected`.
+- `node scripts/build-release.mjs` writes `release/reposcope.exe`. The web assets and demo fixtures sit beside the executable.
+
 ## 0.10.0 — 2026-09-22
 
 - A partial scan and a capped graph say what was left out. Coverage spells out each limit. The file graph states how many files are on screen.

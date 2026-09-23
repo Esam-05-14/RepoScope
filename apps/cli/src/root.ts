@@ -75,8 +75,24 @@ export function bundledFixtures(startDir: string): Record<string, string> {
   return catalog;
 }
 
+export function moduleDirectory(): string {
+  const argv1 = process.argv[1];
+  if (argv1 !== undefined && /\.(?:cjs|mjs|js)$/i.test(argv1)) {
+    return path.dirname(path.resolve(argv1));
+  }
+  try {
+    const url = import.meta.url;
+    if (typeof url === "string" && url.startsWith("file:")) {
+      return path.dirname(fileURLToPath(url));
+    }
+  } catch {
+    // A single-file bundle has no module URL.
+  }
+  return path.dirname(process.execPath);
+}
+
 export function defaultStartDir(): string {
-  return path.dirname(fileURLToPath(import.meta.url));
+  return moduleDirectory();
 }
 
 export async function resolveCliTarget(

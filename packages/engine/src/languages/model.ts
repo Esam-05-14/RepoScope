@@ -1,6 +1,6 @@
 import type { ProjectContext, WorkspacePackage } from "@reposcope/contracts";
 import { inferredCompilerOptions } from "@reposcope/parser-ts";
-import { extractGradleIncludes, readPom } from "@reposcope/parser-java";
+import { extractGradleIncludes, extractGradleSourceDirs, readPom } from "@reposcope/parser-java";
 import { readPyProject, readSetupCfg } from "@reposcope/parser-py";
 import type { BoundContext } from "../contexts.js";
 import { boundedContextId, digestOf, directoryIndex, isUnder, joinInside, safePackageName } from "./paths.js";
@@ -69,6 +69,35 @@ function declaredRoots(
   return { roots: joined, escaped };
 }
 
+function appendGradleSourceDirs(
+  directory: string,
+  builds: ReadonlyMap<string, { relativePath: string; text: string }>,
+  javaRoots: string[],
+  kotlinRoots: string[],
+  truncations: string[],
+): void {
+  const build = builds.get(directory);
+  if (build === undefined) {
+    return;
+  }
+  const parsed = extractGradleSourceDirs(build.text);
+  if (parsed.rejected) {
+    truncations.push(`config-outside-root:${build.relativePath}`);
+  }
+  for (const relative of parsed.directories) {
+    const inside = joinInside(directory, relative);
+    if (inside === undefined) {
+      truncations.push(`config-outside-root:${build.relativePath}`);
+      continue;
+    }
+    const kotlin = inside === "kotlin" || inside.endsWith("/kotlin") || inside.includes("/kotlin/");
+    const list = kotlin ? kotlinRoots : javaRoots;
+    if (!list.includes(inside)) {
+      list.push(inside);
+    }
+  }
+}
+
 function sourceRoot(directory: string, value: string | undefined, fallback: string): string | undefined {
   const raw = (value ?? fallback).replaceAll("${project.basedir}", ".").replace(/^\.\//, "");
   if (raw.includes("${")) {
@@ -86,6 +115,7 @@ export function buildLanguageModel(input: {
   const pythonByDir = new Map<string, { pyproject?: string; setupCfg?: string; configPath: string }>();
   const poms: { directory: string; relativePath: string; text: string }[] = [];
   const settings: { directory: string; relativePath: string; text: string }[] = [];
+  const gradleBuilds = new Map<string, { relativePath: string; text: string }>();
 
   for (const manifest of input.manifests) {
     if (manifest.text.length > MANIFEST_CAP) {
@@ -111,6 +141,8 @@ export function buildLanguageModel(input: {
       poms.push({ directory, relativePath: manifest.relativePath, text: manifest.text });
     } else if (name === "settings.gradle" || name === "settings.gradle.kts") {
       settings.push({ directory, relativePath: manifest.relativePath, text: manifest.text });
+    } else if (name === "build.gradle" || name === "build.gradle.kts") {
+      gradleBuilds.set(directory, { relativePath: manifest.relativePath, text: manifest.text });
     }
   }
 
@@ -230,11 +262,14 @@ export function buildLanguageModel(input: {
       const test = sourceRoot(directory, undefined, "src/test/java");
       const kotlinMain = sourceRoot(directory, undefined, "src/main/kotlin");
       const kotlinTest = sourceRoot(directory, undefined, "src/test/kotlin");
+      const javaRoots = [main, test].filter((root): root is string => root !== undefined);
+      const kotlinRoots = [kotlinMain, kotlinTest].filter((root): root is string => root !== undefined);
+      appendGradleSourceDirs(directory, gradleBuilds, javaRoots, kotlinRoots, truncations);
       addModule({
         directory,
         name,
-        javaRoots: [main, test].filter((root): root is string => root !== undefined),
-        kotlinRoots: [kotlinMain, kotlinTest].filter((root): root is string => root !== undefined),
+        javaRoots,
+        kotlinRoots,
         context: bound(record),
       });
       workspacePackages.push({ name, directory });

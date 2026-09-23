@@ -188,6 +188,98 @@ describe("language engine hardening", () => {
     ).toBe(false);
   });
 
+  it("resolves a Java import to a Kotlin file and a literal Class.forName", () => {
+    const { root } = tempProject("java-kt");
+    const javaDir = path.join(root, "src", "main", "java", "com", "example");
+    const kotlinDir = path.join(root, "src", "main", "kotlin", "com", "example");
+    mkdirSync(javaDir, { recursive: true });
+    mkdirSync(kotlinDir, { recursive: true });
+    writeFileSync(
+      path.join(kotlinDir, "Widget.kt"),
+      "package com.example\nclass Widget\n",
+    );
+    writeFileSync(
+      path.join(javaDir, "App.java"),
+      [
+        "package com.example;",
+        "import com.example.Widget;",
+        "@Import(com.example.Widget.class)",
+        "@ComponentScan(basePackages = \"com.example\")",
+        "public class App {",
+        "  static { Class.forName(\"com.example.Widget\"); Class.forName(name); }",
+        "}",
+      ].join("\n"),
+    );
+    const snapshot = scanRepository({ root });
+    const resolved = snapshot.observations.filter((item) => item.specifier === "com.example.Widget");
+    expect(resolved.length).toBeGreaterThan(1);
+    expect(resolved.every((item) => item.resolution.targetId === "src/main/kotlin/com/example/Widget.kt")).toBe(
+      true,
+    );
+    expect(snapshot.observations.some((item) => item.specifier === "com.example.*")).toBe(true);
+    expect(
+      snapshot.semanticEdges.some((edge) => edge.unresolvedSpecifier === "com.example.*"),
+    ).toBe(false);
+    expect(
+      snapshot.observations.some(
+        (item) => item.specifier === "Class.forName" && item.resolution.status === "unsupported",
+      ),
+    ).toBe(true);
+  });
+
+  it("uses a Gradle srcDir string and ignores one that leaves the root", () => {
+    const { root } = tempProject("gradle-srcdir");
+    writeFileSync(path.join(root, "settings.gradle"), 'include("app")\n');
+    mkdirSync(path.join(root, "app", "custom", "com", "example"), { recursive: true });
+    writeFileSync(
+      path.join(root, "app", "build.gradle"),
+      'sourceSets { main { java { srcDir("custom") srcDir("../secret") } } }\n',
+    );
+    writeFileSync(
+      path.join(root, "app", "custom", "com", "example", "App.java"),
+      "package com.example;\npublic class App {}\n",
+    );
+    mkdirSync(path.join(root, "app", "src", "main", "java", "com", "example"), { recursive: true });
+    writeFileSync(
+      path.join(root, "app", "src", "main", "java", "com", "example", "Use.java"),
+      "package com.example;\nimport com.example.App;\npublic class Use {}\n",
+    );
+    const snapshot = scanRepository({ root });
+    expect(
+      snapshot.observations.find((item) => item.specifier === "com.example.App")?.resolution.targetId,
+    ).toBe("app/custom/com/example/App.java");
+    expect(snapshot.coverage.truncations.some((item) => item.startsWith("config-outside-root:"))).toBe(true);
+  });
+
+  it("reads Python imports from notebook code cells", () => {
+    const { root } = tempProject("notebook");
+    mkdirSync(path.join(root, ".ipynb_checkpoints"));
+    writeFileSync(path.join(root, ".ipynb_checkpoints", "hidden.py"), "import secret_checkpoint\n");
+    writeFileSync(path.join(root, "util.py"), "VALUE = 1\n");
+    writeFileSync(
+      path.join(root, "notes.ipynb"),
+      JSON.stringify({
+        nbformat: 4,
+        cells: [
+          { cell_type: "markdown", source: ["import not_a_cell"] },
+          { cell_type: "code", source: ["import util\n"] },
+        ],
+      }),
+    );
+    writeFileSync(path.join(root, "bad.ipynb"), "{not json");
+    const snapshot = scanRepository({ root });
+    expect(
+      snapshot.observations.find((item) => item.importerId === "notes.ipynb" && item.specifier === "util")
+        ?.resolution.targetId,
+    ).toBe("util.py");
+    expect(snapshot.observations.some((item) => item.specifier === "not_a_cell")).toBe(false);
+    expect(snapshot.observations.some((item) => item.specifier === "secret_checkpoint")).toBe(false);
+    expect(snapshot.coverage.truncations.some((item) => item.startsWith("notebook-rejected:"))).toBe(true);
+    expect(snapshot.nodes.some((node) => node.relativePath === "notes.ipynb" && node.language === "py")).toBe(
+      true,
+    );
+  });
+
   it("keeps the esm-baseline graph digest", () => {
     const snapshot = scanRepository({
       root: path.join(workspace, "fixtures", "esm-baseline"),

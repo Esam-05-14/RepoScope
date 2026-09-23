@@ -169,25 +169,64 @@ function parsePyImport(
   ];
 }
 
-function findDynamic(
-  statement: string,
-  start: number,
-  end: number,
+function isPythonModule(value: string): boolean {
+  return /^[A-Za-z_][\w.]*$/.test(value) && !value.endsWith(".");
+}
+
+function dynamicImportsOnLine(
+  line: string,
+  lineStart: number,
   edgeClass: "value" | "type",
 ): DeclaredImport[] {
   const results: DeclaredImport[] = [];
-  const pattern = /(?:importlib\.import_module|__import__)\s*\(/g;
-  for (const match of statement.matchAll(pattern)) {
-    const head = match[0];
+  let quote: "'" | '"' | null = null;
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+    if (quote !== null) {
+      if (char === "\\") {
+        index += 1;
+        continue;
+      }
+      if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "#") {
+      break;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+      continue;
+    }
+    const head = line.startsWith("__import__", index) ? "__import__" : line.startsWith("importlib.import_module", index) ? "importlib.import_module" : undefined;
+    if (head === undefined) {
+      continue;
+    }
+    const before = line[index - 1];
+    if (before !== undefined && /[A-Za-z0-9_]/.test(before)) {
+      continue;
+    }
+    let cursor = index + head.length;
+    while (cursor < line.length && /\s/.test(line[cursor] ?? "")) {
+      cursor += 1;
+    }
+    if (line[cursor] !== "(") {
+      continue;
+    }
+    const literal = /^\s*(['"])([^'"]+)\1/.exec(line.slice(cursor + 1));
+    const name = literal?.[2];
+    const named = name !== undefined && isPythonModule(name);
     results.push({
-      specifier: head.startsWith("__import__") ? "__import__" : "importlib",
+      specifier: named ? name : head === "__import__" ? "__import__" : "importlib",
       edgeClass,
-      supported: false,
-      reasonCode: "UNSUPPORTED_SYNTAX",
+      supported: named,
+      reasonCode: named ? undefined : "UNSUPPORTED_SYNTAX",
       syntaxKind: "other-unsupported",
-      startOffset: start + match.index,
-      endOffset: end,
+      startOffset: lineStart + index,
+      endOffset: lineStart + line.length,
     });
+    index = cursor;
   }
   return results;
 }
@@ -218,7 +257,6 @@ export function extractPythonImports(text: string): DeclaredImport[] {
     );
     if (inlineType?.[1] !== undefined) {
       results.push(...parsePyImport(inlineType[1], start, endOffset, "type"));
-      results.push(...findDynamic(inlineType[1], start, endOffset, "type"));
       return;
     }
     if (/^if\s+(?:typing\.)?TYPE_CHECKING\b[^:]*:\s*$/.test(statement)) {
@@ -228,7 +266,6 @@ export function extractPythonImports(text: string): DeclaredImport[] {
     if (statement.startsWith("import ") || statement.startsWith("from ")) {
       results.push(...parsePyImport(statement, start, endOffset, edgeClass));
     }
-    results.push(...findDynamic(statement, start, endOffset, edgeClass));
   };
 
   for (const line of lines) {
@@ -242,10 +279,10 @@ export function extractPythonImports(text: string): DeclaredImport[] {
     }
     const indent = /^[ \t]*/.exec(line)?.[0].length ?? 0;
     const scanned = scanCode(line);
+    if (pending.length === 0 && scanned.code.trim().length === 0 && scanned.triple === null) {
+      continue;
+    }
     if (pending.length === 0) {
-      if (scanned.code.trim().length === 0 && scanned.triple === null) {
-        continue;
-      }
       while (typeIndents.length > 0 && indent <= (typeIndents[typeIndents.length - 1] ?? 0)) {
         typeIndents.pop();
       }
@@ -253,6 +290,7 @@ export function extractPythonImports(text: string): DeclaredImport[] {
       pendingStart = lineStart + indent;
       inType = typeIndents.length > 0;
     }
+    results.push(...dynamicImportsOnLine(line, lineStart, typeIndents.length > 0 ? "type" : "value"));
     pending += `${scanned.code} `;
     paren += scanned.parenDelta;
     if (scanned.triple !== null) {

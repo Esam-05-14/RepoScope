@@ -523,6 +523,9 @@ export function scanRepositoryDetailed(options: ScanOptions): ScanResult {
       if (collected.truncated) {
         scanTruncations.push(`max-observations:${file.relativePath}`);
       }
+      if (collected.notebookRejected) {
+        scanTruncations.push(`notebook-rejected:${file.relativePath}`);
+      }
       observations.push(...collected.observations);
       emitParseProgress();
       continue;

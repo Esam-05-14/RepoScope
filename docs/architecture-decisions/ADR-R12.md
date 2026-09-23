@@ -17,6 +17,10 @@ The scanners do not start an interpreter, a compiler, or a build tool. `pyprojec
 - tree-sitter WASM: still allowed later. It would be a new parser version, not a silent replacement.
 - Shelling out to Python or Java: rejected. It executes the inspected project.
 
+## Follow-up (0.11.0)
+
+Pins are `py-import@2`, `java-import@2`, and `kt-import@2`. A string argument to `Class.forName`, `importlib.import_module`, or `__import__` resolves with the same rules as an import. A non-literal call stays `UNSUPPORTED_SYNTAX`. Spring `@Import`, `@ComponentScan` `basePackageClasses`, and `@SpringBootApplication` `exclude` record a qualified class literal as a declared dependency. `@ComponentScan` package strings stay `WILDCARD_IMPORT`. A `.ipynb` file contributes Python imports from code cells only. These scanners still do not start Python, Java, Kotlin, or Gradle.
+
 ## Impact
 
 Security: no project process and no XML external entities. Compatibility: `fixtures/esm-baseline` keeps its graph digest. Tests cover relative Python imports, `src/` layout, `TYPE_CHECKING`, star imports, `setup.py` not running, Maven reactor edges, wildcard omissions, and a parent POM outside the root.

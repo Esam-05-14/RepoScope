@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import type { ImportObservation, ReasonCode } from "@reposcope/contracts";
 import { extractJavaImports } from "@reposcope/parser-java";
 import { extractKotlinImports } from "@reposcope/parser-kt";
-import { extractPythonImports } from "@reposcope/parser-py";
+import { extractNotebookImports, extractPythonImports } from "@reposcope/parser-py";
 import type { LanguageModel } from "./model.js";
 import { offsetsToRange } from "./ranges.js";
 import { resolveDeclared } from "./resolve.js";
@@ -48,10 +48,14 @@ export function collectForeignObservations(input: {
   relativePath: string;
   contextId: string;
   model: LanguageModel;
-}): { observations: ImportObservation[]; truncated: boolean } {
+}): { observations: ImportObservation[]; truncated: boolean; notebookRejected: boolean } {
   const bom = input.text.charCodeAt(0) === 0xfeff;
   const text = bom ? input.text.slice(1) : input.text;
-  const extracted = extract(input.language, text);
+  const notebook =
+    input.language === "py" && input.relativePath.endsWith(".ipynb")
+      ? extractNotebookImports(text)
+      : undefined;
+  const extracted = notebook !== undefined ? notebook.imports : extract(input.language, text);
   const truncated = extracted.length > MAX_OBSERVATIONS;
   const observations: ImportObservation[] = [];
   const seen = new Set<string>();
@@ -89,5 +93,5 @@ export function collectForeignObservations(input: {
       importedNames: item.importedNames?.slice(0, 64),
     });
   }
-  return { observations, truncated };
+  return { observations, truncated, notebookRejected: notebook?.rejected === true };
 }

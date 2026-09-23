@@ -36,6 +36,7 @@ const SKIP_DIRECTORIES = new Set([
   ".tox",
   ".mypy_cache",
   ".pytest_cache",
+  ".ipynb_checkpoints",
   "target",
   ".gradle",
 ]);
@@ -75,6 +76,8 @@ const MANIFEST_NAMES = new Set([
   "pom.xml",
   "settings.gradle",
   "settings.gradle.kts",
+  "build.gradle",
+  "build.gradle.kts",
 ]);
 
 function languageForFile(name: string): LanguageId | undefined {
@@ -83,7 +86,7 @@ function languageForFile(name: string): LanguageId | undefined {
     return fromTypeScript;
   }
   const extension = path.extname(name);
-  if (extension === ".py") {
+  if (extension === ".py" || extension === ".ipynb") {
     return "py";
   }
   if (extension === ".java") {

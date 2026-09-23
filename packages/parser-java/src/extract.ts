@@ -147,6 +147,10 @@ function parseModule(text: string, index: number, found: DeclaredImport[]): numb
   return cursor;
 }
 
+function qualifiedType(value: string): boolean {
+  return /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+$/.test(value);
+}
+
 function parseCall(
   text: string,
   index: number,
@@ -162,17 +166,82 @@ function parseCall(
   }
   const after = index + match[0].length;
   const literal = /^(\s*)(["'])([^"']*)\2/.exec(text.slice(after));
-  const specifier = literal?.[3] !== undefined && literal[3].length > 0 ? literal[3] : fallback;
+  const named = literal?.[3] !== undefined && qualifiedType(literal[3]);
+  const specifier = named ? literal?.[3] ?? fallback : fallback;
   const end = literal !== null ? after + literal[0].length : after;
   found.push({
     specifier: specifier.slice(0, 1024),
     edgeClass: "value",
-    supported: false,
-    reasonCode: "UNSUPPORTED_SYNTAX",
+    supported: named,
+    reasonCode: named ? undefined : "UNSUPPORTED_SYNTAX",
     syntaxKind: "other-unsupported",
     startOffset: index,
     endOffset: end,
   });
+  return end;
+}
+
+function parseSpringAnnotation(text: string, index: number, found: DeclaredImport[]): number {
+  const header = /^@(Import|ComponentScan|SpringBootApplication)\b/.exec(text.slice(index, index + 80));
+  if (header?.[1] === undefined) {
+    return index;
+  }
+  let cursor = index + header[0].length;
+  while (cursor < text.length && /\s/.test(text[cursor] ?? "")) {
+    cursor += 1;
+  }
+  let body = "";
+  let bodyStart = cursor;
+  let end = cursor;
+  if (text[cursor] === "(") {
+    let depth = 1;
+    bodyStart = cursor + 1;
+    cursor += 1;
+    const limit = Math.min(text.length, bodyStart + 4000);
+    while (cursor < limit && depth > 0) {
+      if (text[cursor] === "(") {
+        depth += 1;
+      } else if (text[cursor] === ")") {
+        depth -= 1;
+      }
+      cursor += 1;
+    }
+    body = text.slice(bodyStart, Math.max(bodyStart, cursor - 1));
+    end = cursor;
+  }
+  for (const match of body.matchAll(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)+)\.class\b/g)) {
+    const specifier = match[1];
+    if (specifier === undefined || !qualifiedType(specifier)) {
+      continue;
+    }
+    const at = bodyStart + (match.index ?? 0);
+    found.push({
+      specifier,
+      edgeClass: "value",
+      supported: true,
+      syntaxKind: "static-import",
+      startOffset: at,
+      endOffset: at + specifier.length,
+    });
+  }
+  if (header[1] === "ComponentScan") {
+    for (const match of body.matchAll(/"([A-Za-z_][\w.]*)"/g)) {
+      const name = match[1];
+      if (name === undefined || name.length === 0) {
+        continue;
+      }
+      const at = bodyStart + (match.index ?? 0);
+      found.push({
+        specifier: name.endsWith(".*") ? name : `${name}.*`,
+        edgeClass: "value",
+        supported: false,
+        reasonCode: "WILDCARD_IMPORT",
+        syntaxKind: "other-unsupported",
+        startOffset: at,
+        endOffset: at + name.length,
+      });
+    }
+  }
   return end;
 }
 
@@ -193,6 +262,13 @@ export function extractJavaImports(text: string): DeclaredImport[] {
     if (text[index] === '"' || text[index] === "'") {
       index = skipString(text, index);
       continue;
+    }
+    if (text[index] === "@") {
+      const next = parseSpringAnnotation(text, index, found);
+      if (next > index) {
+        index = next;
+        continue;
+      }
     }
     if (isWord(text, index, "import")) {
       const end = text.indexOf(";", index);

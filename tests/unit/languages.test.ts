@@ -68,10 +68,13 @@ describe("language waves", () => {
       relative.observations.find((item) => item.specifier === "requests")?.resolution.status,
     ).toBe("external");
     expect(
-      relative.observations.some(
-        (item) => item.specifier === "importlib" && item.resolution.status === "unsupported",
-      ),
-    ).toBe(true);
+      relative.observations.find(
+        (item) =>
+          item.importerId === "pkg/app.py" &&
+          item.specifier === "pkg.util" &&
+          item.syntaxKind === "other-unsupported",
+      )?.resolution.targetId,
+    ).toBe("pkg/util.py");
     expect(relative.nodes.some((node) => node.relativePath.includes("hidden.py"))).toBe(false);
 
     const star = relative.observations.find(
@@ -92,7 +95,7 @@ describe("language waves", () => {
     expect(componentIdForFile("src/demo/app.py", src.coverage.workspacePackages ?? [])).toBe("pkg:demo");
     expect(src.schemaVersion).toBe("1.1.0");
     expect(src.parserVersion.length).toBeLessThanOrEqual(64);
-    expect(src.parserVersion).toContain("py-import@1");
+    expect(src.parserVersion).toContain("py-import@2");
     assertSourceFree(src);
     expect(scanRepository({ root: fixture("python-src") }).graphDigest).toBe(src.graphDigest);
 
@@ -157,8 +160,8 @@ describe("language waves", () => {
     ).toBe(false);
     expect(
       reactor.observations.find((item) => item.specifier === "com.example.api.Widget" && item.syntaxKind === "other-unsupported")
-        ?.resolution.status,
-    ).toBe("unsupported");
+        ?.resolution.targetId,
+    ).toBe(widget);
     expect(
       reactor.observations.find((item) => item.specifier === "java.base")?.resolution.status,
     ).toBe("external");
@@ -214,8 +217,8 @@ describe("language waves", () => {
     expect(
       kotlin.observations.find(
         (item) => item.importerId.endsWith("JavaSide.java") && item.specifier === "com.example.lib.Widget",
-      )?.resolution.status,
-    ).toBe("unresolved");
+      )?.resolution.targetId,
+    ).toBe("app/src/main/kotlin/com/example/lib/Widget.kt");
     expect(kotlin.nodes.some((node) => node.language === "kt")).toBe(true);
     expect(kotlin.schemaVersion).toBe("1.1.0");
   });

@@ -1,8 +1,8 @@
 export const SCHEMA_VERSION = "1.0.0";
 /** Writers emit this once a snapshot contains a py, java, or kt node. */
 export const MULTI_LANGUAGE_SCHEMA_VERSION = "1.1.0";
-export const ENGINE_VERSION = "0.10.0-lang";
-export const PRODUCT_VERSION = "0.10.0";
+export const ENGINE_VERSION = "0.11.0";
+export const PRODUCT_VERSION = "0.11.0";
 export const PARSER_VERSION = "typescript@6.0.3";
 
 export const API_ERROR_CODES = [

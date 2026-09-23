@@ -123,7 +123,7 @@ function jvmRoots(model: LanguageModel, importer: string, language: "java" | "kt
   if (model.jvm.length === 0) {
     return language === "kt"
       ? [...model.inferredKotlinRoots, ...model.inferredJavaRoots]
-      : model.inferredJavaRoots;
+      : [...model.inferredJavaRoots, ...model.inferredKotlinRoots];
   }
   const own: JvmModule | undefined = nearest(importer, model.jvm);
   const rest = model.jvm.filter((module) => module !== own);
@@ -131,9 +131,10 @@ function jvmRoots(model: LanguageModel, importer: string, language: "java" | "kt
   const roots: string[] = [];
   for (const module of ordered) {
     if (language === "kt") {
-      roots.push(...module.kotlinRoots);
+      roots.push(...module.kotlinRoots, ...module.javaRoots);
+    } else {
+      roots.push(...module.javaRoots, ...module.kotlinRoots);
     }
-    roots.push(...module.javaRoots);
   }
   return roots;
 }
@@ -145,7 +146,7 @@ function resolveJvm(input: DeclaredResolutionInput, language: "java" | "kt"): Re
   }
   const relative = parts.join("/");
   const roots = jvmRoots(input.model, input.importerRelative, language);
-  const extensions = language === "kt" ? [".kt", ".java"] : [".java"];
+  const extensions = language === "kt" ? [".kt", ".java"] : [".java", ".kt"];
   for (const root of roots) {
     for (const extension of extensions) {
       const candidate = root.length === 0 ? `${relative}${extension}` : `${root}/${relative}${extension}`;

@@ -81,6 +81,49 @@ function parseKotlinClause(clause: string, start: number, end: number): Declared
   };
 }
 
+function parseKotlinSpring(text: string, index: number, found: DeclaredImport[]): number {
+  const header = /^@(?:Import|ComponentScan|SpringBootApplication)\b/.exec(text.slice(index, index + 80));
+  if (header === null) {
+    return index;
+  }
+  let cursor = index + header[0].length;
+  while (cursor < text.length && /\s/.test(text[cursor] ?? "")) {
+    cursor += 1;
+  }
+  if (text[cursor] !== "(") {
+    return cursor;
+  }
+  let depth = 1;
+  const bodyStart = cursor + 1;
+  cursor += 1;
+  const limit = Math.min(text.length, bodyStart + 4000);
+  while (cursor < limit && depth > 0) {
+    if (text[cursor] === "(") {
+      depth += 1;
+    } else if (text[cursor] === ")") {
+      depth -= 1;
+    }
+    cursor += 1;
+  }
+  const body = text.slice(bodyStart, Math.max(bodyStart, cursor - 1));
+  for (const match of body.matchAll(/([A-Za-z_][\w.]*(?:\.[A-Za-z_][\w.]*)+)(?:::class)?\.class\b|([A-Za-z_][\w.]*(?:\.[A-Za-z_][\w.]*)+)::class\b/g)) {
+    const specifier = match[1] ?? match[2];
+    if (specifier === undefined || !specifier.includes(".")) {
+      continue;
+    }
+    const at = bodyStart + (match.index ?? 0);
+    found.push({
+      specifier,
+      edgeClass: "value",
+      supported: true,
+      syntaxKind: "static-import",
+      startOffset: at,
+      endOffset: at + specifier.length,
+    });
+  }
+  return cursor;
+}
+
 export function extractKotlinImports(text: string): DeclaredImport[] {
   const found: DeclaredImport[] = [];
   let index = 0;
@@ -103,6 +146,34 @@ export function extractKotlinImports(text: string): DeclaredImport[] {
       const end = text.indexOf("\n", index);
       index = end < 0 ? text.length : end + 1;
       continue;
+    }
+    if (text[index] === "@") {
+      const next = parseKotlinSpring(text, index, found);
+      if (next > index) {
+        index = next;
+        continue;
+      }
+    }
+    if (isWord(text, index, "Class")) {
+      const slice = text.slice(index, index + 160);
+      const call = /^Class\s*\.\s*forName\s*\(/.exec(slice);
+      if (call !== null) {
+        const after = index + call[0].length;
+        const literal = /^(\s*)(["'])([^"']*)\2/.exec(text.slice(after));
+        const named = literal?.[3] !== undefined && /^[A-Za-z_][\w.]*(?:\.[A-Za-z_][\w.]*)+$/.test(literal[3]);
+        const end = literal !== null ? after + literal[0].length : after;
+        found.push({
+          specifier: named ? (literal?.[3] ?? "Class.forName") : "Class.forName",
+          edgeClass: "value",
+          supported: named,
+          reasonCode: named ? undefined : "UNSUPPORTED_SYNTAX",
+          syntaxKind: "other-unsupported",
+          startOffset: index,
+          endOffset: end,
+        });
+        index = end;
+        continue;
+      }
     }
     if (isWord(text, index, "import")) {
       let end = index + "import".length;

@@ -82,7 +82,7 @@ Bind is `127.0.0.1` only. Host and Origin are validated. Default exports omit so
 
 ## Package
 
-Version **0.10.0**. The workspace is the supported distribution. `license` is MIT, `bin` is `reposcope`, and published packages expose `dist` only. Do not `npm publish` unless you are cutting a release. `REPOSCOPE_PERSIST=0` disables the application snapshot cache.
+Version **0.11.0**. The workspace is the supported distribution. `license` is MIT, `bin` is `reposcope`, and published packages expose `dist` only. `node scripts/build-release.mjs` writes `release/reposcope.exe` plus the web assets and fixtures beside it. The npm name `reposcope` is already taken, so this repository does not publish that name. `REPOSCOPE_PERSIST=0` disables the application snapshot cache.
 
 Install the optional VS Code command from `extensions/vscode` if you want `RepoScope: Reveal File` in the editor. The loopback API still confines the path before launching `code` or `REPOSCOPE_EDITOR`.
 

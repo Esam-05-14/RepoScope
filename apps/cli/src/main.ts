@@ -4,17 +4,20 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { PRODUCT_VERSION } from "@reposcope/contracts";
+import { moduleDirectory } from "./root.js";
 import { inspectCommand } from "./commands/inspect.js";
 import { compareCommand } from "./commands/compare.js";
 import { briefCommand } from "./commands/brief.js";
 import { scanCommand } from "./commands/scan.js";
 
 function webDistRoot(): string | undefined {
-  const candidate = path.resolve(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "../../web/dist",
-  );
-  return existsSync(candidate) ? candidate : undefined;
+  const dir = moduleDirectory();
+  const candidates = [
+    path.resolve(dir, "../../web/dist"),
+    path.resolve(dir, "web"),
+    path.resolve(path.dirname(process.execPath), "web"),
+  ];
+  return candidates.find((candidate) => existsSync(path.join(candidate, "index.html")));
 }
 
 async function main(argv: string[]): Promise<void> {
@@ -103,10 +106,21 @@ async function main(argv: string[]): Promise<void> {
   process.on("SIGTERM", stop);
 }
 
-const invoked = fileURLToPath(import.meta.url);
+const argvPath = process.argv[1];
+let invoked = "";
+try {
+  const url = import.meta.url;
+  if (typeof url === "string" && url.startsWith("file:")) {
+    invoked = fileURLToPath(url);
+  }
+} catch {
+  invoked = "";
+}
 const isEntry =
-  process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === invoked;
+  argvPath === undefined ||
+  (invoked.length > 0 && argvPath !== undefined && path.resolve(argvPath) === invoked) ||
+  (argvPath !== undefined && /(?:^|[\\/])main\.(?:cjs|mjs|js)$/i.test(argvPath)) ||
+  path.basename(process.execPath).toLowerCase().startsWith("reposcope");
 
 if (isEntry) {
   main(process.argv.slice(2)).catch((error: unknown) => {

@@ -12,6 +12,7 @@ const LABELS: Record<string, string> = {
   "xml-rejected": "A Maven file was rejected by the XML reader and was not used as a module.",
   "max-observations":
     "Import observations in a file were capped. Later declarations in that file were omitted.",
+  "notebook-rejected": "A notebook was not valid JSON and its code cells were not read.",
 };
 
 export function truncationLabel(code: string): string {

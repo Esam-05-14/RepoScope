@@ -17,6 +17,10 @@ L7 adds `parser-kt`. It records `import foo.Bar`, `import foo.Bar as Baz`, and `
 - Running Gradle to list projects: rejected. It executes the build.
 - Resolving Kotlin types from Java files: rejected. That would change the Java acceptance list and pretend a Java import named a Kotlin file.
 
+## Follow-up (0.11.0)
+
+A Java named import may resolve to `.java` and then `.kt` under the module's Java roots and then its Kotlin roots. A Kotlin import still prefers `.kt`. Gradle `build.gradle` and `build.gradle.kts` are data: `srcDir("...")` and `srcDirs("...")` string literals become extra source roots inside the included module. A literal that contains `..`, `$`, or an absolute path is `config-outside-root`. Gradle is still not started.
+
 ## Impact
 
 Security: no Gradle process and no Gradle cache reads. Compatibility: included directories become source roots for the Java and Kotlin resolvers. The release promise names Kotlin imports as declared source imports, not a symbol graph.

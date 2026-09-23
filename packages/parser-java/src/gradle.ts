@@ -70,3 +70,35 @@ export function extractGradleIncludes(text: string): { directories: string[]; re
   }
   return { directories: [...new Set(dirs)], rejected };
 }
+
+export function extractGradleSourceDirs(text: string): { directories: string[]; rejected: boolean } {
+  const dirs: string[] = [];
+  let rejected = false;
+  const code = stripGradle(text);
+  for (const match of code.matchAll(/\bsrcDirs?\s*\(/g)) {
+    const start = (match.index ?? 0) + match[0].length;
+    let depth = 1;
+    let cursor = start;
+    const limit = Math.min(code.length, start + 500);
+    while (cursor < limit && depth > 0) {
+      if (code[cursor] === "(") {
+        depth += 1;
+      } else if (code[cursor] === ")") {
+        depth -= 1;
+      }
+      cursor += 1;
+    }
+    const body = code.slice(start, Math.max(start, cursor - 1));
+    for (const literal of body.matchAll(/"([^"\\]*)"|'([^'\\]*)'/g)) {
+      const raw = (literal[1] ?? literal[2] ?? "").trim();
+      if (raw.length === 0 || raw.includes("..") || raw.includes("$") || raw.startsWith("/") || /^[A-Za-z]:/.test(raw)) {
+        if (raw.length > 0) {
+          rejected = true;
+        }
+        continue;
+      }
+      dirs.push(raw.replace(/^\.\//, ""));
+    }
+  }
+  return { directories: [...new Set(dirs)], rejected };
+}

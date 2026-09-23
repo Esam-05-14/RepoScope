@@ -6,7 +6,7 @@ Frozen at R0. The CLI canonicalizes one root before the API starts. The browser 
 
 - Regular files inside the canonical root after `realpath`-style resolution.
 - `tsconfig.json` / `jsconfig.json` inside that root, parsed through the TypeScript config API on the confined host.
-- `pyproject.toml`, `setup.cfg`, `pom.xml`, `settings.gradle`, and `settings.gradle.kts` inside that root, read as data with a 256 KiB cap. XML rejects `DOCTYPE` and `ENTITY`. TOML and INI reads are limited to declared layout keys. Gradle reads are limited to `include("...")` string literals.
+- `pyproject.toml`, `setup.cfg`, `pom.xml`, `settings.gradle`, `settings.gradle.kts`, `build.gradle`, and `build.gradle.kts` inside that root, read as data with a 256 KiB cap. XML rejects `DOCTYPE` and `ENTITY`. TOML and INI reads are limited to declared layout keys. Gradle reads are limited to `include("...")` and `srcDir` / `srcDirs` string literals. `.ipynb` code cells are JSON data.
 - Git object reads (P1 only) from the selected commit via `execFile` argument arrays, never shell strings.
 - Optional `https://github.com/{owner}/{repo}` locators. The clone URL is reconstructed; the destination is application-owned cache (`~/.reposcope/clones` or `REPOSCOPE_CACHE`), not a browser-supplied filesystem path.
 

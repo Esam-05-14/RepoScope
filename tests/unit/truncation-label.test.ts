@@ -27,6 +27,6 @@ describe("product version", () => {
     const root = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
     const pkg = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8")) as { version: string };
     expect(pkg.version).toBe(PRODUCT_VERSION);
-    expect(PRODUCT_VERSION).toBe("0.10.0");
+    expect(PRODUCT_VERSION).toBe("0.11.0");
   });
 });

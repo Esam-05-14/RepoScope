@@ -46,9 +46,9 @@ If spike S1 fails on Windows, the documented fallback is Vite 7 plus a Vite-7-co
 | Snapshot `schemaVersion` writers emit | `1.0.0` for TypeScript-only snapshots. `1.1.0` once a snapshot contains a `py`, `java`, or `kt` node |
 | Schema document | `1.1.0` (`contracts/schemas/analysis-snapshot.schema.json`). Adds `py`, `java`, `kt`, optional context `language`, and `WILDCARD_IMPORT`. |
 | Snapshot major compatibility | accept `1.x.x`; reject unknown majors |
-| Product version | `0.10.0` (`package.json`, `reposcope --version`) |
-| `engineVersion` | `0.10.0-lang` |
-| `parserVersion` | `typescript@6.0.3` for a TypeScript-only snapshot. A mixed snapshot appends `py-import@1`, `java-import@1`, and `kt-import@1` (64-character cap). |
+| Product version | `0.11.0` (`package.json`, `reposcope --version`) |
+| `engineVersion` | `0.11.0` |
+| `parserVersion` | `typescript@6.0.3` for a TypeScript-only snapshot. A mixed snapshot appends `py-import@2`, `java-import@2`, and `kt-import@2` (64-character cap). |
 
 ## Sources checked
 
